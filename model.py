@@ -26,6 +26,7 @@ class Sequence(nn.Module):
         c0 = torch.zeros(self.num_layers, self.batch_size, self.hidden_size)
         return h0, c0
     
+### GPT-1, found on youtube
 class Head(nn.Module):
     """ one head of self-attention """
 
@@ -55,9 +56,9 @@ class Head(nn.Module):
 class MultiHeadAttention(nn.Module):
     """ multiple heads of self-attention in parallel """
 
-    def __init__(self, num_heads, head_size, n_embd, dropout):
+    def __init__(self, num_heads, head_size, n_embd, dropout,block_size):
         super().__init__()
-        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.heads = nn.ModuleList([Head(head_size,n_embd,dropout,block_size) for _ in range(num_heads)])
         self.proj = nn.Linear(n_embd, n_embd)
         self.dropout = nn.Dropout(dropout)
 
@@ -84,11 +85,11 @@ class FeedFoward(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
 
-    def __init__(self, n_embd, n_head, drop_out):
+    def __init__(self, n_embd, n_head, drop_out,block_size):
         # n_embd: embedding dimension, n_head: the number of heads we'd like
         super().__init__()
         head_size = n_embd // n_head
-        self.sa = MultiHeadAttention(n_head, head_size,n_embd,drop_out)
+        self.sa = MultiHeadAttention(n_head, head_size,n_embd,drop_out,block_size)
         self.ffwd = FeedFoward(n_embd,drop_out)
         self.ln1 = nn.LayerNorm(n_embd)
         self.ln2 = nn.LayerNorm(n_embd)
@@ -108,13 +109,12 @@ class BigramLanguageModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.position_embedding_table = nn.Embedding(block_size, n_embd)
-        self.blocks = nn.Sequential(*[Block(n_embd, n_head,drop_out) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(*[Block(n_embd, n_head,drop_out,block_size) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embd) # final layer norm
         self.lm_head = nn.Linear(n_embd, vocab_size)
 
     def forward(self, idx, targets=None):
         B, T = idx.shape
-
         # idx and targets are both (B,T) tensor of integers
 
         tok_emb = self.token_embedding_table(idx) # (B,T,C)
@@ -129,9 +129,10 @@ class BigramLanguageModel(nn.Module):
             loss = None
         else:
             B, T, C = logits.shape
-            logits = logits.view(B*T, C)
+            logits_ = logits.view(B*T, C)
             targets = targets.view(B*T)
-            loss = F.cross_entropy(logits, targets)
+
+            loss = F.cross_entropy(logits_, targets)
 
         return logits, loss
 

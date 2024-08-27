@@ -11,7 +11,9 @@ python3 = sys.version_info.major >= 3
 import time
 
 # ---- Arithmetic coding core classes ----
-
+def patch_asscalar(a):
+    return a.item()
+setattr(np,"asscalar",patch_asscalar)
 # Provides the state and behaviors that arithmetic coding encoders and decoders share.
 class ArithmeticCoderBase(object):
     
