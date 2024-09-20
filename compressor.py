@@ -226,7 +226,7 @@ def main(_):
   train = train[:1]
   len_datas = len_datas[:1]
 
-  encode(temp_dir, compressed_file, FLAGS, train,model,600)
+  encode(temp_dir, compressed_file, FLAGS, train,model,200)
   #Combined compressed results
   f = open(compressed_file+'.combined','wb')
   for i in range(len(train)):
@@ -237,8 +237,10 @@ def main(_):
     f.write(byte_str)
     f_in.close()
   model.eval()
-  tmp = torch.tensor([137 , 80 , 78 , 71  ,13 , 10 , 26 , 10 ,257,  13 , 73,  72  ,68 , 82 ,257 , 28]).view(16,1)
-  print(model(tmp).argmax())
+  tmp = torch.tensor(train[0][:16]).view(1,16)
+  print(tmp)
+  print(model(tmp).shape)
+  print(torch.argmax(model(tmp),dim=2))
   total = 0
   for ff in os.listdir(temp_dir):
     total += os.path.getsize(temp_dir+'/'+ff)
