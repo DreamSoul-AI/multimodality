@@ -53,6 +53,11 @@ def transform_bits(file):
     for j in img_bytes:
         tmp.append(bits2token[tuple(j)])
     return tmp
+def transform_tokens(tokens):
+    tmp = []
+    for i in tokens:
+        tmp = tmp+list(token2bits[i])
+    return tmp
 def load_data(tokenizer):
     data = []
     for i in range(1):

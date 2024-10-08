@@ -53,7 +53,7 @@ class ArithmeticCoderBase(object):
         self.low = 0
         # High end of this arithmetic coder's current range. Conceptually has an infinite number of trailing 1s.
         self.high = self.MASK
-    
+        # self.dummy = 0
     
     # Updates the code range (low and high) of this arithmetic coder as a result
     # of processing the given symbol with the given frequency table.
@@ -70,6 +70,7 @@ class ArithmeticCoderBase(object):
     def update(self,  cumul, symbol):
         # State check
         #s = time.time()
+        # self.dummy+=1
         low = self.low
         high = self.high
 #       if low >= high or (low & self.MASK) != low or (high & self.MASK) != high:
@@ -86,12 +87,14 @@ class ArithmeticCoderBase(object):
 #           raise ValueError("Symbol has zero frequency")
 #       if total > self.MAX_TOTAL:
 #           raise ValueError("Cannot code symbol because total is too large")
-        
+        # if self.dummy==:
+        #     sys.exit()
         # Update range
         newlow  = low + symlow  * range // total
         newhigh = low + symhigh * range // total - 1
         self.low = newlow
         self.high = newhigh
+
         # While the highest bits are equal
         #s1 = time.time()
         #print("update1", s1-s)
@@ -107,7 +110,6 @@ class ArithmeticCoderBase(object):
             self.underflow()
             self.low = (self.low << 1) & (self.MASK >> 1)
             self.high = ((self.high << 1) & (self.MASK >> 1)) | self.TOP_MASK | 1
-    
         #s3 = time.time()
         #print("update3", s3-s2)
     

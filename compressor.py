@@ -10,9 +10,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from BPE import BasicTokenizer
-from dataloader.mnist import load_mnist, load_data, split, generate_dataset
+from dataloader.mnist import load_mnist, load_data, split, generate_dataset, removeNestings, transform_tokens
 import Arithmeticcoding.arithmeticcoding_fast as arithmeticcoding_fast
 from models import BigramLanguageModel,lstm
+import base64
+
 torch.manual_seed(0)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -64,10 +66,10 @@ def decode(temp_dir, compressed_file, FLAGS,model, len_datas):
   '''seq_len == block_size, like size of the sliding window'''
   optimizer = torch.optim.Adam(model.parameters(), lr=FLAGS.learning_rate, weight_decay=FLAGS.weight_decay, betas=(.9, .999))
   # Decode first K symbols in each stream with uniform probabilities
-  out = open('tttdecompressed_out', 'w')
   np.random.seed(FLAGS.random_seed)
   torch.manual_seed(FLAGS.random_seed)
-
+  model.eval()
+  decoded_data = []
   for i in range(len(len_datas)):
     prob = np.ones(FLAGS.vocab_size)/FLAGS.vocab_size
     cumul = np.zeros(FLAGS.vocab_size+1, dtype=np.uint64)
@@ -78,14 +80,13 @@ def decode(temp_dir, compressed_file, FLAGS,model, len_datas):
       series_1d[j] = dec[i].read(cumul, FLAGS.vocab_size)
     for j in range(0,len_datas[i]-block_size):
       cumul = np.zeros(FLAGS.vocab_size+1, dtype=np.uint64)
-      model.train()
       train_batch = series_1d[j:j+block_size]
-      train_batch = torch.LongTensor(train_batch).reshape(len(train_batch),1)
-      
+      train_batch = torch.LongTensor(train_batch).reshape(1,len(train_batch))
       logits= model.forward(train_batch)
-      prob = logits[-1,:, :]
+      prob = logits[:,-1,:]
+
       prob = F.softmax(prob).detach().cpu().numpy()  
-      cumul[1:] = np.cumsum(prob*10000000 + 1, axis=0)
+      cumul[1:] = np.cumsum(prob*10000000 + 1, axis=1)
     # Decode with Arithmetic Encoder
       series_1d[j+block_size] = dec[i].read(cumul[:], FLAGS.vocab_size)
       # label = torch.from_numpy(series_1d[j+1:j+FLAGS.seq_len+1])
@@ -94,14 +95,13 @@ def decode(temp_dir, compressed_file, FLAGS,model, len_datas):
       # train_loss.backward()
       # optimizer.step()
       # optimizer.zero_grad(set_to_none=True)
-    
-    out.write(utils.decode_tokens(series_1d))
-    print(series_1d)
+    decoded_data.append(series_1d)
   
-  
+
   for i in range(len(len_datas)):
     bitin[i].close()
     f[i].close()
+  return decoded_data
 
   
  
@@ -134,42 +134,41 @@ def encode(temp_dir, compressed_file, FLAGS, train_data,model,batch_iter):
   
   for i in range(len(train_data)):
       # batch_index = np.random.randint(0,len(series),bs)
-      cumul = np.zeros(FLAGS.vocab_size+1, dtype=np.uint64)
-      prob = np.ones(FLAGS.vocab_size)/FLAGS.vocab_size
-      cumul[1:] = np.cumsum(prob*10000000 + 1)
-      for j in range(block_size):
-          enc[i].write(cumul,train_data[i][j])
+      
       for train_index in range(batch_iter):
-
         batch = torch.tensor(train_batch[i])
         cumul_batch  = np.zeros((len(batch), FLAGS.vocab_size+1), dtype = np.uint64)
         model.train()
         train_loss, logits = model.full_loss(batch, with_grad=True)
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
-        y = batch[:,-1]
-        prob = logits[:, :,-1]
-        prob = F.softmax(prob,dim=1).detach().cpu().numpy()
-        
-        
-        
-        
         idx += 1
         if (train_index) % FLAGS.print_step == 0:
           size = 0
           for cf in os.listdir(temp_dir):
             size += os.path.getsize(temp_dir+"/"+cf)
           print(f"{i}th data with {train_index} time", ":", train_loss.item()/np.log(2), "size:", size/(1024*1024))
+  for i in range(len(train_data)):
+      batch = torch.tensor(train_batch[i])
+      cumul = np.zeros(FLAGS.vocab_size+1, dtype=np.uint64)
+      prob = np.ones(FLAGS.vocab_size)/FLAGS.vocab_size
+      cumul[1:] = np.cumsum(prob*10000000 + 1)
+      for j in range(block_size):
+          enc[i].write(cumul,train_data[i][j])
+      cumul_batch  = np.zeros((len(batch), FLAGS.vocab_size+1), dtype = np.uint64)
+      train_loss, logits = model.full_loss(batch, with_grad=True)
+      y = batch[:,-1]
+      prob = logits[:, :,-1]
+      prob = F.softmax(prob,dim=1).detach().cpu().numpy()
       cumul_batch[:,1:] = np.cumsum(prob*10000000 + 1, axis = 1)
-
-      for j in y:
-        enc[i].write(cumul_batch[i,:], j)
+      for j in range(len(y)):
+         enc[i].write(cumul_batch[j,:], y[j])
 
   for i in range(len(train_data)):
     enc[i].finish()
     bitout[i].close()
     f[i].close()
-  return
+  return model
     
 def var_int_encode(byte_str_len, f):
   while True:
@@ -211,22 +210,24 @@ def main(_):
   tokenizer = BasicTokenizer()
   data = load_data(tokenizer)
   data_for_tokenzier = np.concatenate(data,axis = 0).tolist()
-  tokenizer.train(data_for_tokenzier, 256 + 3,verbose =True)
-  FLAGS.vocab_size = 259
+  tokenizer.train(data_for_tokenzier, 256,verbose =True)
+  FLAGS.vocab_size = 256
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   model = BigramLanguageModel(FLAGS.n_heads,FLAGS.n_layers,0,FLAGS.vocab_size,FLAGS.hidden_dim,FLAGS.block_size, device)
   # model = lstm(FLAGS.vocab_size,FLAGS.hidden_dim,FLAGS.ffn_dim,FLAGS.n_layers,FLAGS.block_size)
   len_datas=[]
 
-  for i in range(1):
+  '''data: a 2D array data[n]: the nth data. In this case, the nth tokenized image
+  len_datas: size of each tokenzied img data
+  '''
+  for i in range(3):
     data[i] = np.array(tokenizer.encode(data[i]))
     len_datas.append(len(data[i]))
 
   train,test = split(data,0.01)
-  train = train[:1]
-  len_datas = len_datas[:1]
-
-  encode(temp_dir, compressed_file, FLAGS, train,model,200)
+  train = train[:3]
+  len_datas = len_datas[:3]
+  model = encode(temp_dir, compressed_file, FLAGS, train,model,50)
   #Combined compressed results
   f = open(compressed_file+'.combined','wb')
   for i in range(len(train)):
@@ -236,16 +237,11 @@ def main(_):
     var_int_encode(byte_str_len, f)
     f.write(byte_str)
     f_in.close()
-  model.eval()
-  tmp = torch.tensor(train[0][:16]).view(1,16)
-  print(tmp)
-  print(model(tmp).shape)
-  print(torch.argmax(model(tmp),dim=2))
+  
   total = 0
   for ff in os.listdir(temp_dir):
     total += os.path.getsize(temp_dir+'/'+ff)
   
-  print(total/(1024*1024))
   
 
   #Remove temp file
@@ -264,8 +260,17 @@ def main(_):
     f_out.write(byte_str)
     f_out.close()
 
-  decode(temp_dir, compressed_file, FLAGS, model,len_datas)
-  
+  decoded_data = decode(temp_dir, compressed_file, FLAGS, model,len_datas)
+  for i in range(len(decoded_data)):
+      tokenized=tokenizer.decode(decoded_data[i])
+      bits_array = transform_tokens(removeNestings(tokenized))
+      
+      out_bytes = np.packbits(bits_array)
+      out_bytes.tofile(f'hello_level{i}.png')
+
+
+
+
 
 if __name__ == '__main__':
   app.run(main)
