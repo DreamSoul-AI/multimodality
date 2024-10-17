@@ -102,7 +102,7 @@ class Block(nn.Module):
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
 
-    def __init__(self, n_head, n_layer, drop_out, vocab_size, n_embd, block_size, device):
+    def __init__(self, n_head, n_layer, drop_out, vocab_size, n_embd, block_size, starter_seqlen,device):
         super().__init__()
         self.device = device
         self.block_size = block_size
@@ -112,13 +112,14 @@ class BigramLanguageModel(nn.Module):
         self.blocks = nn.Sequential(*[Block(n_embd, n_head,drop_out,block_size) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embd) # final layer norm
         self.lm_head = nn.Linear(n_embd, vocab_size)
+        self.starter_seqlen = starter_seqlen
 
     def forward(self, idx):
         B, T = idx.shape
         # idx and targets are both (B,T) tensor of integers
 
         tok_emb = self.token_embedding_table(idx) # (B,T,C)
-        pos_emb = self.position_embedding_table(torch.arange(T, device=self.device)) # (T,C)
+        pos_emb = self.position_embedding_table(torch.arange(T)) # (T,C)
 
         x = tok_emb + pos_emb # (B,T,C)
         x = self.blocks(x) # (B,T,C)
@@ -132,13 +133,12 @@ class BigramLanguageModel(nn.Module):
                 with_grad=True):
 
         logits = self.forward(inputs[:, :-1])
+        
         logits = logits.transpose(1, 2)
         loss = torch.nn.functional.cross_entropy(
-                logits[:, :, -1], inputs[:, -1], reduction='mean')
-
+                logits[:, :, self.starter_seqlen-1:], inputs[:, self.starter_seqlen:])
         if with_grad:
             loss.backward()
-
         return loss, logits
 
     def generate(self, idx, max_new_tokens):
