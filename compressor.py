@@ -235,48 +235,48 @@ def main(_):
     train, test = split(data, 0.01)
     print('train: ', len(train))
     print('test: ', len(test))
-    # train = train[:3]
-    # len_datas = len_datas[:3]
-    # model = encode(temp_dir, compressed_file, FLAGS, train, model, 50)
-    # torch.save(model, 'ckpt/bigram_model.pth')
-    #
-    # # Combined compressed results
-    # f = open(compressed_file + '.combined', 'wb')
-    # for i in range(len(train)):
-    #     f_in = open(temp_dir + '/' + compressed_file + '.' + str(i), 'rb')
-    #     byte_str = f_in.read()
-    #     byte_str_len = len(byte_str)
-    #     var_int_encode(byte_str_len, f)
-    #     f.write(byte_str)
-    #     f_in.close()
-    #
-    # total = 0
-    # for ff in os.listdir(temp_dir):
-    #     total += os.path.getsize(temp_dir + '/' + ff)
-    #
-    # # Remove temp file
-    # shutil.rmtree(temp_dir)
-    #
-    # # Decode
-    # os.mkdir(temp_dir)
-    #
-    # # Split compressed file
-    #
-    # f = open(compressed_file + '.combined', 'rb')
-    # for i in range(len(train)):
-    #     f_out = open(temp_dir + '/' + compressed_file + '.' + str(i), 'wb')
-    #     byte_str_len = var_int_decode(f)
-    #     byte_str = f.read(byte_str_len)
-    #     f_out.write(byte_str)
-    #     f_out.close()
-    #
-    # decoded_data = decode(temp_dir, compressed_file, FLAGS, model, len_datas)
-    # for i in range(len(decoded_data)):
-    #     tokenized = tokenizer.decode(decoded_data[i])
-    #     bits_array = transform_tokens(removeNestings(tokenized))
-    #
-    #     out_bytes = np.packbits(bits_array)
-    #     out_bytes.tofile(f'hello_level{i}.png')
+    train = train[:3]
+    len_datas = len_datas[:3]
+    model = encode(temp_dir, compressed_file, FLAGS, train, model, 50)
+    torch.save(model, 'ckpt/bigram_model.pth')
+
+    # Combined compressed results
+    f = open(compressed_file + '.combined', 'wb')
+    for i in range(len(train)):
+        f_in = open(temp_dir + '/' + compressed_file + '.' + str(i), 'rb')
+        byte_str = f_in.read()
+        byte_str_len = len(byte_str)
+        var_int_encode(byte_str_len, f)
+        f.write(byte_str)
+        f_in.close()
+
+    total = 0
+    for ff in os.listdir(temp_dir):
+        total += os.path.getsize(temp_dir + '/' + ff)
+
+    # Remove temp file
+    shutil.rmtree(temp_dir)
+
+    # Decode
+    os.mkdir(temp_dir)
+
+    # Split compressed file
+
+    f = open(compressed_file + '.combined', 'rb')
+    for i in range(len(train)):
+        f_out = open(temp_dir + '/' + compressed_file + '.' + str(i), 'wb')
+        byte_str_len = var_int_decode(f)
+        byte_str = f.read(byte_str_len)
+        f_out.write(byte_str)
+        f_out.close()
+
+    decoded_data = decode(temp_dir, compressed_file, FLAGS, model, len_datas)
+    for i in range(len(decoded_data)):
+        tokenized = tokenizer.decode(decoded_data[i])
+        bits_array = transform_tokens(removeNestings(tokenized))
+
+        out_bytes = np.packbits(bits_array)
+        out_bytes.tofile(f'hello_level{i}.png')
 
 
 if __name__ == '__main__':
