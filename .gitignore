@@ -131,3 +131,4 @@ scripts/
 /MNIST/
 /dataset/
 /ckpt/
+/src/64_bs1_4_temp/
