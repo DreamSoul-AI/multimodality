@@ -2,7 +2,7 @@
 - fix training & encoding data dim errors
 
 ## To Do
-- Refactor the way of calling parameter 'block_e'
+- Refactor the way of calling parameter 'block_size'
 - Refactor dataset module
 
 ## Examples
