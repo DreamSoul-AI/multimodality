@@ -12,7 +12,9 @@ def process_control():
     # cfg['num_epochs'] = 1
     cfg['collate_mode'] = 'dict'
 
-    cfg['starter_seqlen'] = 16
+    cfg['compressor'] = {}
+    cfg['compressor']['starter_seqlen'] = 16
+    cfg['compressor']['vocab_size'] = 256
 
     cfg['model'] = {}
     cfg['model']['model_name'] = cfg['model_name']
@@ -28,8 +30,8 @@ def process_control():
     cfg['model']['resnet18'] = {'hidden_size': [64, 128, 256, 512]}
     cfg['model']['wresnet28x2'] = {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}
     cfg['model']['wresnet28x8'] = {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}
-    cfg['model']['gpt1'] = {'n_head': 4, 'n_layer': 4, 'drop_out': 0, 'vocab_size': 256, 'n_embd': 64,
-                            'block_size': 16, 'device': 'cpu'}
+    cfg['model']['gpt1'] = {'n_head': 4, 'n_layer': 4, 'drop_out': 0, 'vocab_size': 257, 'n_embd': 64,
+                            'block_size': 828, 'device': 'mps'}
 
     tag = cfg['tag']
     cfg[tag] = {}

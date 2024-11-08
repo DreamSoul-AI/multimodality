@@ -125,8 +125,9 @@ class BigramLanguageModel(nn.Module):
     def forward(self, idx):
         B, T = idx.shape
         # idx and targets are both (B,T) tensor of integers
-        print("idx: ", idx, "\n", "idx shape: ", idx.shape)
-        print("B: ", B, "\n", "T: ", T)
+        # print("idx: ", idx, "\n", "idx shape: ", idx.shape)
+        print("idx shape: ", idx.shape)
+        # print("B: ", B, "\n", "T: ", T)
 
         tok_emb = self.token_embedding_table(idx)  # (B,T,C)
         pos_emb = self.position_embedding_table(torch.arange(T))  # (T,C)

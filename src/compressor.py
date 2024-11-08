@@ -52,7 +52,7 @@ def run_experiment():
     tokenizer = BasicTokenizer()
     data, org_size = load_data(tokenizer, "data/mnist/0", 20)
     data_for_tokenizer = np.concatenate(data, axis=0).tolist()
-    tokenizer.train(data_for_tokenizer, cfg['model']['gpt1']['vocab_size'], verbose=True)
+    tokenizer.train(data_for_tokenizer, cfg['compressor']['vocab_size'], verbose=True)
     temp_dir = "{}_bs{}_{}_temp".format(cfg['model']['gpt1']['n_embd'],
                                         cfg['batch_size'], cfg['model']['gpt1']['n_layer'])
     if not os.path.exists(temp_dir):
@@ -66,11 +66,11 @@ def run_experiment():
     for i in range(len(data)):
         data[i] = np.array(tokenizer.encode(data[i]))
 
-    datas, len_datas, max_len = padding(data, cfg['model']['gpt1']['vocab_size'])
+    datas, len_datas, max_len = padding(data, cfg['compressor']['vocab_size'])
     train_data, train_data_lens, test_data, test_data_lens = split(datas, len_datas, 0.8)
 
     model = make_model(cfg['model'])
-    print(model)
+    # print(model)
     result = resume(cfg['checkpoint_path'], resume_mode=cfg['resume_mode'])
     if result is None:
         cfg['step'] = 0
@@ -90,15 +90,15 @@ def run_experiment():
         logger.load_state_dict(result['logger'])
         logger.reset()
     dataloader = DataLoader(train_data, batch_size=cfg[cfg['tag']]['optimizer']['batch_size']['train'], shuffle=True)
-    train(dataloader, optimizer, model, cfg['starter_seqlen'], cfg['model']['gpt1']['vocab_size'])
+    train(dataloader, optimizer, model, cfg['compressor']['starter_seqlen'], cfg['model']['gpt1']['vocab_size'])
 
     # Encode
     file_num, enc_size = encode(test_data,
                                 temp_dir,
                                 compressed_file,
                                 model,
-                                cfg['starter_seqlen'],
-                                cfg['model']['gpt1']['vocab_size'],
+                                cfg['compressor']['starter_seqlen'],
+                                cfg['compressor']['vocab_size'],
                                 cfg[cfg['tag']]['optimizer']['batch_size']['train'])
     f = open(compressed_file + '.combined', 'wb')  # Combined compressed results
     for i in range(file_num):
@@ -142,12 +142,12 @@ def run_experiment():
 def train(dataloader, optimizer, model, starter_seqlen, vocab_size):
     idx = 0
     batch_index = 0
-    for epoch in range(5):
+    for epoch in range(1):
         for input_data in dataloader:
             cumul_batch = np.zeros((len(input_data), vocab_size + 2), dtype=np.uint64)
             model.train(True)
             input_data = to_device(input_data, cfg['device'])
-            print("input_data: ", input_data, "\n", "input_data shape: ", input_data.shape)
+            # print("input_data: ", input_data, "\n", "input_data shape: ", input_data.shape)
             output = model(input_data, starter_seqlen)
             loss = 1 / cfg['step_period'] * output['loss']
             loss.backward()
@@ -165,17 +165,22 @@ def encode(data, temp_dir, compressed_file, model, starter_seqlen, vocab_size, b
     enc = [arithmeticcoding_fast.ArithmeticEncoder(32, bitout[i]) for i in range(len(data))]
 
     cumul = np.zeros((len(data), vocab_size + 2), dtype=np.uint64)
+    print('cumul.shape: ', cumul.shape)
     prob = np.ones(vocab_size + 1) / vocab_size
     cumul[:, 1:] = np.cumsum(prob * 10000000 + 1)
     for j in range(len(data)):
         for k in range(starter_seqlen):
             enc[j].write(cumul[j], data[j, k])
     cumul_batch = np.zeros((len(data), len(data[0]) - starter_seqlen, vocab_size + 2), dtype=np.uint64)
-    logits = model.forward(torch.tensor(data[:, :-1]))
+    print('cumul_batch.shape: ', cumul_batch.shape)
+    output = model(torch.tensor(data), starter_seqlen)
+    logits = output['pred']
+    # logits = model.forward(torch.tensor(data[:, :-1]))
     y = data[:, starter_seqlen:]
 
     prob = logits[:, starter_seqlen - 1:, :]
     prob = F.softmax(prob, dim=-1).detach().cpu().numpy()
+    print('prob.shape: ', prob.shape)
 
     cumul_batch[:, :, 1:] = np.cumsum(prob * 10000000 + 1, axis=2)
     for j in range(len(y)):
