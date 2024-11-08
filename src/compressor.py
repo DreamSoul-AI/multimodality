@@ -175,7 +175,6 @@ def encode(data, temp_dir, compressed_file, model, starter_seqlen, vocab_size, b
     print('cumul_batch.shape: ', cumul_batch.shape)
     output = model(torch.tensor(data), starter_seqlen)
     logits = output['pred']
-    # logits = model.forward(torch.tensor(data[:, :-1]))
     y = data[:, starter_seqlen:]
 
     prob = logits[:, starter_seqlen - 1:, :]

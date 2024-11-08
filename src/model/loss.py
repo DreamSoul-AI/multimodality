@@ -5,6 +5,7 @@ import torch.nn.functional as F
 def make_loss(output, input, starter_seqlen):
     output['pred'] = output['pred'].transpose(1, 2)
     loss = loss_fn(output['pred'][:, :, starter_seqlen-1:], input[:, starter_seqlen:])
+    output['pred'] = output['pred'].transpose(1, 2)
     return loss
 
 
