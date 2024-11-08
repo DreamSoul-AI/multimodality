@@ -1,13 +1,9 @@
-## Current Error
-- torch.nn.Embedding related error 
-
-<p align="center">
-<img src="/asset/error.png">
-</p>
+## Last commit message
+- fix training & encoding data dim errors
 
 ## To Do
-- Debug model module
-- Refactor dataset/dataloader module
+- Refactor the way of calling parameter 'block_e'
+- Refactor dataset module
 
 ## Examples
 - Quick Start
