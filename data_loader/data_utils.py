@@ -52,6 +52,7 @@ def tokenize(tokenizer,datas, vocab_size):
 
     tokenizer.train(data_for_tokenzier, vocab_size,verbose =True)
     for i in range(len(datas)):
+        
         datas[i] = np.array(tokenizer.encode(datas[i]))
     return datas
 def removeNestings(l):

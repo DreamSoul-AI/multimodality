@@ -9,9 +9,11 @@ from data_loader import load
 from data_loader.data_utils import split, load_data
 from methods import bpe
 from methods.FastTransformer import CompressionTRACE
+from methods.huffman import CompressionTraditional
 from methods.bpe import CompressionBPE
 from models.GPT_1 import BigramLanguageModel
 from models.slimperformer import SLiMPerformer
+import gzip
 torch.manual_seed(0)
 
 # torch.backends.cudnn.deterministic = True
@@ -57,7 +59,7 @@ def method(bytes_array,file_name):
     file.close()
 
 def main(_):
-  data_path='dataset/0/'
+  data_path='dataset/mnist/0/'
   compress_path='compressed_file/'
   decompress_path='decompressed_file/'
   compress_extentions='.bin'
@@ -87,6 +89,12 @@ def main(_):
   # b.decompress(FLAGS,compress_path,decompress_path,method,decompress_extentions)
   # print(org_size/encode_size)
   # model = lstm(FLAGS.vocab_size,FLAGS.hidden_dim,FLAGS.ffn_dim,FLAGS.n_layers,FLAGS.block_size)
+
+  c=CompressionTraditional(gzip.compress,gzip.decompress)
+  enc_size=c.compress(data_path,'hello',compress_path,'.bin',num_files=50)
+  c.decompress(compress_path,'hello',decompress_path,method,'.png',num_files=50)
+  print(org_size/enc_size)
+
   '''
   data: a 2D array data[n]: the nth data. In this case, the nth tokenized image
   len_datas: size of each tokenzied img data
