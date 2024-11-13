@@ -102,9 +102,8 @@ class Block(nn.Module):
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
 
-    def __init__(self, n_head, n_layer, drop_out, vocab_size, n_embd, block_size, starter_seqlen,device):
+    def __init__(self, n_head, n_layer, drop_out, vocab_size, n_embd, block_size, starter_seqlen):
         super().__init__()
-        self.device = device
         self.block_size = block_size
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
@@ -113,7 +112,7 @@ class BigramLanguageModel(nn.Module):
         self.ln_f = nn.LayerNorm(n_embd) # final layer norm
         self.lm_head = nn.Linear(n_embd, vocab_size)
         self.starter_seqlen = starter_seqlen
-
+        print(self.block_size,"a")
     def forward(self, idx):
         B, T = idx.shape
         # idx and targets are both (B,T) tensor of integers

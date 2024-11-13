@@ -16,5 +16,6 @@ def load_mnist():
             if not os.path.exists(son_path):
                 os.makedirs(son_path)
             plt.imsave(son_path+str(len(os.listdir(son_path)))+'.png',img.reshape(28,28), cmap="gray")
+    return root_dataset_path
     
 
