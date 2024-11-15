@@ -133,3 +133,4 @@ scripts/
 /ckpt/
 /dzip/files_compressed/
 /dzip/files_to_be_compressed/*.png
+/src/64_bs1_4_temp/
