@@ -128,6 +128,6 @@ res/
 /MNIST/
 /dataset/
 /ckpt/
-dzip/files_compressed
+dzip/files_compressed/*
 dzip/files_to_be_compressed/*.png
 *.nncp
