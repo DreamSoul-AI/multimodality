@@ -123,15 +123,12 @@ res/
 .idea/
 .vscode/
 .DS_Store
-scripts/
 
 *.png
-/text8_259_64_128_bs1_4_seq16.compressed.combined
-/text8_259_64_128_bs1_4_seq16_temp/
 /MNIST/
 /dataset/
 /ckpt/
-/dzip/files_compressed/
-/dzip/files_to_be_compressed/*.png
-/src/64_bs1_4_temp/
 *.nncp
+/dzip/files_compressed/
+/dzip/files_to_be_compressed/
+*.ipynb
