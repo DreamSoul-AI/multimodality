@@ -16,9 +16,17 @@ def get_stats(ids, counts=None):
     Example: [1, 2, 3, 1, 2] -> {(1, 2): 2, (2, 3): 1, (3, 1): 1}
     Optionally allows to update an existing dictionary of counts
     """
+    # counts = {} if counts is None else counts
+    # i = 0
+    # while i < len(ids[0]):
+    #     for pair in zip(ids[i], ids[i][1:]):  # iterate consecutive elements
+    #         counts[pair] = counts.get(pair, 0) + 1
+    #         print("i: ", i, "pair: ", pair, "counts[pair]: ", counts[pair])
+    #     i += 1
     counts = {} if counts is None else counts
-    for pair in zip(ids, ids[1:]): # iterate consecutive elements
+    for pair in zip(ids, ids[1:]):  # iterate consecutive elements
         counts[pair] = counts.get(pair, 0) + 1
+
     return counts
 
 
@@ -28,6 +36,21 @@ def merge(ids, pair, idx):
     of pair with the new integer token idx
     Example: ids=[1, 2, 3, 1, 2], pair=(1, 2), idx=4 -> [4, 3, 4]
     """
+    # newids = []
+    # i = 0
+    # while i < len(ids[0]):
+    #     newids.append([])
+    #     j = 0
+    #     while j < len(ids[1]):
+    #         # if not at the very last position AND the pair matches, replace it
+    #         if ids[i][j] == pair[0] and j < len(ids[1]) - 1 and ids[i][j+1] == pair[1]:
+    #             newids[i].append(idx)
+    #             j += 2
+    #
+    #         else:
+    #             newids[i].append(ids[i][j])
+    #             j += 1
+    #     i += 1
     newids = []
     i = 0
     while i < len(ids):
@@ -89,7 +112,7 @@ class Tokenizer:
         # vocab is simply and deterministically derived from merges
         vocab = {idx: idx for idx in range(256)}
         for (p0, p1), idx in self.merges.items():
-            vocab[idx] = vocab[p0] + vocab[p1]
+            vocab[idx] = (p0, p1)
         for special, idx in self.special_tokens.items():
             vocab[idx] = special.encode("utf-8")
         return vocab
@@ -105,40 +128,46 @@ class Tokenizer:
         model_file = file_prefix + ".model"
         with open(model_file, 'w') as f:
             # write the version, pattern and merges, that's all that's needed
-            f.write("minbpe v1\n")
-            f.write(f"{self.pattern}\n")
-            # write the special tokens, first the number of them, then each one
-            f.write(f"{len(self.special_tokens)}\n")
-            for special, idx in self.special_tokens.items():
-                f.write(f"{special} {idx}\n")
+            # f.write("image_minbpe v1\n")
+            # f.write("pattern: " + f"{self.pattern}\n")
+            # # write the special tokens, first the number of them, then each one
+            # f.write("len(self.special_tokens): " + f"{len(self.special_tokens)}\n")
+            # for special, idx in self.special_tokens.items():
+            #     f.write("special: " + f"{special} {idx}\n")
             # the merges dict
             for idx1, idx2 in self.merges:
                 f.write(f"{idx1} {idx2}\n")
         # write the vocab: for the human to look at
-        vocab_file = file_prefix + ".vocab"
-        inverted_merges = {idx: pair for pair, idx in self.merges.items()}
-        with open(vocab_file, "w", encoding="utf-8") as f:
-            for idx, token in self.vocab.items():
-                # note: many tokens may be partial utf-8 sequences
-                # and cannot be decoded into valid strings. Here we're using
-                # errors='replace' to replace them with the replacement char �.
-                # this also means that we couldn't possibly use .vocab in load()
-                # because decoding in this way is a lossy operation!
-                s = render_token(token)
-                # find the children of this token, if any
-                if idx in inverted_merges:
-                    # if this token has children, render it nicely as a merge
-                    idx0, idx1 = inverted_merges[idx]
-                    s0 = render_token(self.vocab[idx0])
-                    s1 = render_token(self.vocab[idx1])
-                    f.write(f"[{s0}][{s1}] -> [{s}] {idx}\n")
-                else:
-                    # otherwise this is leaf token, just print it
-                    # (this should just be the first 256 tokens, the bytes)
-                    f.write(f"[{s}] {idx}\n")
+        # vocab_file = file_prefix + ".vocab"
+        # inverted_merges = {idx: pair for pair, idx in self.merges.items()}
+        # with open(vocab_file, "w", encoding="utf-8") as f:
+        #     for idx, token in self.vocab.items():
+        #         # note: many tokens may be partial utf-8 sequences
+        #         # and cannot be decoded into valid strings. Here we're using
+        #         # errors='replace' to replace them with the replacement char �.
+        #         # this also means that we couldn't possibly use .vocab in load()
+        #         # because decoding in this way is a lossy operation!
+        #         # s = render_token(token)
+        #         # find the children of this token, if any
+        #         if idx in inverted_merges:
+        #             # if this token has children, render it nicely as a merge
+        #             # print("inverted_merges: ", inverted_merges)
+        #             idx0, idx1 = inverted_merges[idx]
+        #             # print(f"idx: {idx}, idx0: {idx0}, idx1: {idx1}")
+        #             # s0 = render_token(self.vocab[idx0])
+        #             # s1 = render_token(self.vocab[idx1])
+        #             # print("token: ", token)
+        #             # print(self.vocab[idx0])
+        #             # print(self.vocab[idx1])
+        #             f.write(f"[{self.vocab[idx0]}][{self.vocab[idx1]}] -> [{token}] {idx}\n")
+        #         else:
+        #             # otherwise this is leaf token, just print it
+        #             # (this should just be the first 256 tokens, the bytes)
+        #             f.write(f"[{token}] {idx}\n")
 
     def load(self, model_file):
         """Inverse of save() but only for the model file"""
+        model_file = model_file + ".model"
         assert model_file.endswith(".model")
         # read the model file
         merges = {}
@@ -146,15 +175,15 @@ class Tokenizer:
         idx = 256
         with open(model_file, 'r', encoding="utf-8") as f:
             # read the version
-            version = f.readline().strip()
-            assert version == "minbpe v1"
+            # version = f.readline().strip()
+            # assert version == "image_minbpe v1"
             # read the pattern
-            self.pattern = f.readline().strip()
+            # self.pattern = f.readline().strip()
             # read the special tokens
-            num_special = int(f.readline().strip())
-            for _ in range(num_special):
-                special, special_idx = f.readline().strip().split()
-                special_tokens[special] = int(special_idx)
+            # num_special = int(f.readline().strip())
+            # for _ in range(num_special):
+            #     special, special_idx = f.readline().strip().split()
+            #     special_tokens[special] = int(special_idx)
             # read the merges
             for line in f:
                 idx1, idx2 = map(int, line.split())
