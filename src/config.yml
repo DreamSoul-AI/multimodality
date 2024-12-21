@@ -1,14 +1,14 @@
 ---
 # control
 control:
-  data_name: MNIST
-  model_name: gpt1
+  data_name: dickens_test
+  model_name: trace
 # experiment
 pin_memory: True
 num_workers: 0
 init_seed: 0
 num_experiments: 1
 log_interval: 0.25
-device: cpu
+device: gpu
 resume_mode: 0
 profile: False

@@ -20,8 +20,8 @@ def get_output_size(directory):
 
 
 if __name__ == "__main__":
-    # input_size_bytes = get_input_size("input/dickens_test_text")
-    input_size_bytes = os.path.getsize('input/dickens_test_text')
+    # input_size_bytes = get_input_size("input/dickens_test")
+    input_size_bytes = os.path.getsize('input/dickens_test')
 
     print("input_size_bytes: {}".format(input_size_bytes/(1024*1024)))
     # input_size_mb = total_size_bytes / (1024 * 1024)  # Convert bytes to MB

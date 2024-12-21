@@ -124,16 +124,13 @@ res/
 .vscode/
 .DS_Store
 
-*.png
-/MNIST/
-/dataset/
-/ckpt/
-*.nncp
 /dzip/files_compressed/
 /dzip/files_to_be_compressed/
-*.ipynb
-/pipeline/trace/dickens_test_64_256_4096_bs8_1_seq8_temp/
-/pipeline/trace/input/
-/pipeline/trace/models/
-/pipeline/trace/decompressed
+/experiment/trace/dickens_test_64_256_4096_bs8_1_seq8_temp/
+/experiment/trace/input/
+/experiment/trace/models/
+/experiment/trace/decompressed
 *.combined
+/src/64_256_4096_bs8_1_seq8_temp/
+/src/models/
+/src/input/

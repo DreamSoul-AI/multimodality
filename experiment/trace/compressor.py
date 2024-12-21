@@ -50,7 +50,7 @@ flags.DEFINE_integer('print_step', 100, 'Interval to print metrics.')
 # Dataset parameters
 flags.DEFINE_integer('seq_len', 8, 'Maximum sequence length (L).')
 flags.DEFINE_integer('vocab_size', 512, 'Vocabulary size of data.')
-flags.DEFINE_string('input_dir', 'input/dickens_test_text', 'input data dir')
+flags.DEFINE_string('input_dir', 'input/dickens_test', 'input data dir')
 flags.DEFINE_string('prefix', 'dickens_test', 'output dir')
 
 
@@ -78,7 +78,7 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
 
     cumul_batch = np.zeros((bs, FLAGS.vocab_size + 1), dtype=np.uint64)
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_id
+    # os.environ['CUDA_VISIBLE_DEVICES'] = FLAGS.gpu_id
     np.random.seed(FLAGS.random_seed)
     torch.manual_seed(FLAGS.random_seed)
 

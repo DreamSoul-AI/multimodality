@@ -4,7 +4,8 @@ def process_control():
     cfg['data_name'] = cfg['control']['data_name']
     cfg['model_name'] = cfg['control']['model_name']
 
-    cfg['batch_size'] = 1
+    cfg['device'] = 'cuda'
+    cfg['batch_size'] = 8
     cfg['step_period'] = 1
     cfg['num_steps'] = 100
     cfg['print_step'] = 100
@@ -13,16 +14,10 @@ def process_control():
     cfg['collate_mode'] = 'dict'
 
     cfg['compressor'] = {}
-    cfg['compressor']['starter_seqlen'] = 16
-    cfg['compressor']['vocab_size'] = 256
+    cfg['compressor']['seq_len'] = 8
 
     cfg['model'] = {}
     cfg['model']['model_name'] = cfg['model_name']
-    data_shape = {'MNIST': [1, 28, 28], 'FashionMNIST': [1, 28, 28], 'SVHN': [3, 32, 32], 'CIFAR10': [3, 32, 32],
-                  'CIFAR100': [3, 32, 32]}
-    target_size = {'MNIST': 10, 'FashionMNIST': 10, 'SVHN': 10, 'CIFAR10': 10, 'CIFAR100': 100}
-    cfg['model']['data_shape'] = data_shape[cfg['data_name']]
-    cfg['model']['target_size'] = target_size[cfg['data_name']]
     cfg['model']['linear'] = {}
     cfg['model']['mlp'] = {'hidden_size': 128, 'scale_factor': 2, 'num_layers': 2, 'activation': 'relu'}
     cfg['model']['cnn'] = {'hidden_size': [64, 128, 256, 512]}
@@ -32,6 +27,8 @@ def process_control():
     cfg['model']['wresnet28x8'] = {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}
     cfg['model']['gpt1'] = {'n_head': 4, 'n_layer': 4, 'drop_out': 0, 'vocab_size': 257, 'n_embd': 64,
                             'block_size': 828, 'device': 'mps'}
+    cfg['model']['trace'] = {'vocab_size': 512, 'vocab_dim': 64, 'hidden_dim': 256, 'n_layers': 1, 'ffn_dim': 4096,
+                            'n_heads': 1, 'feature_type': 'sqr', 'compute_type': 'iter'}
 
     tag = cfg['tag']
     cfg[tag] = {}

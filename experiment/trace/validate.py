@@ -15,4 +15,4 @@ def compare_files(original_file_path, decoded_file_path):
     else:
         print("The decoded file does NOT match the original file.")
 
-compare_files('input/dickens_test_text', 'decompressed')
+compare_files('input/dickens_test', 'decompressed')
