@@ -49,7 +49,7 @@ flags.DEFINE_integer('random_seed', 0, 'Random seed for both Numpy and Torch.')
 flags.DEFINE_integer('print_step', 100, 'Interval to print metrics.')
 # Dataset parameters
 flags.DEFINE_integer('seq_len', 8, 'Maximum sequence length (L).')
-flags.DEFINE_integer('vocab_size', 512, 'Vocabulary size of data.')
+flags.DEFINE_integer('vocab_size', 256, 'Vocabulary size of data.')
 flags.DEFINE_string('input_dir', 'input/dickens_test', 'input data dir')
 flags.DEFINE_string('prefix', 'dickens_test', 'output dir')
 
@@ -116,13 +116,16 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
     # out = open('decompressed', 'w', encoding='utf-8')
     out = open('decompressed', 'w')
     for i in range(len(series_2d)):
+        # decode without BPE
+        out.write(utils.decode_tokens(series_2d[i]))
+
         # decode with BPE
-        series_list = series_2d[i].tolist()
-        tokenizer = BasicTokenizer()
-        tokenizer.load(bpe_ckpt)  # load trained model
-        bpe_decoded_list = tokenizer.decode(series_list)
-        array = asarray(bpe_decoded_list)
-        out.write(utils.decode_tokens(array))
+        # series_list = series_2d[i].tolist()
+        # tokenizer = BasicTokenizer()
+        # tokenizer.load(bpe_ckpt)  # load trained model
+        # bpe_decoded_list = tokenizer.decode(series_list)
+        # array = asarray(bpe_decoded_list)
+        # out.write(utils.decode_tokens(array))
 
     for i in range(bs):
         bitin[i].close()
@@ -143,11 +146,11 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
         # print("Last decode part don't need inference.")
 
         # decode with BPE
-        series_list = series.tolist()
-        tokenizer = BasicTokenizer()
-        tokenizer.load(bpe_ckpt)  # load trained model
-        bpe_decoded_list = tokenizer.decode(series_list)
-        series = asarray(bpe_decoded_list)
+        # series_list = series.tolist()
+        # tokenizer = BasicTokenizer()
+        # tokenizer.load(bpe_ckpt)  # load trained model
+        # bpe_decoded_list = tokenizer.decode(series_list)
+        # series = asarray(bpe_decoded_list)
         # print("Last bpe decoded series: \n", series)
 
         out.write(utils.decode_tokens(series))
@@ -170,8 +173,12 @@ def encode(temp_dir, compressed_file, FLAGS, series, train_data, last_train_data
 
     iter_num = len(train_data) // FLAGS.batch_size
     print("len(train_data): ", len(train_data))
+    print("batch_size: ", FLAGS.batch_size)
+    print("iter_num: ", iter_num)
+
     ind = np.array(range(bs)) * iter_num
     iter_num -= FLAGS.seq_len
+    print("iter_num: ", iter_num)
 
     for i in range(bs):
         for j in range(FLAGS.seq_len):
@@ -185,7 +192,6 @@ def encode(temp_dir, compressed_file, FLAGS, series, train_data, last_train_data
     # print(model)
     optimizer = torch.optim.Adam(model.parameters(), lr=FLAGS.learning_rate, weight_decay=FLAGS.weight_decay,
                                  betas=(.9, .999))
-    print("iter_num: ", iter_num)
     for train_index in range(iter_num):
         model.train()
         train_batch = train_data[ind, :]
@@ -301,20 +307,20 @@ def main(_):
     prefix = os.path.join("models", FLAGS.prefix)
 
     # train BPE
-    time_train_start = time.time()
-    tokenizer.train(series, FLAGS.vocab_size, 2, resume=True, verbose=False)
-    time_train_finish = time.time()
-    print(f"Training BPE took {time_train_finish - time_train_start:.2f} seconds")
-    tokenizer.save(prefix)
+    # time_train_start = time.time()
+    # tokenizer.train(series, FLAGS.vocab_size, 2, resume=True, verbose=False)
+    # time_train_finish = time.time()
+    # print(f"Training BPE took {time_train_finish - time_train_start:.2f} seconds")
+    # tokenizer.save(prefix)
 
     # encode with BPE
-    time_encode_start = time.time()
-    tokenizer.load(prefix)  # load trained model
-    series = tokenizer.encode(series)
-    series = asarray(series)
-    print("len(series) after BPE: ", len(series))
-    time_encode_finish = time.time()
-    print(f"Encoding with BPE took {time_encode_finish - time_encode_start:.2f} seconds")
+    # time_encode_start = time.time()
+    # tokenizer.load(prefix)  # load trained model
+    # series = tokenizer.encode(series)
+    # series = asarray(series)
+    # print("len(series) after BPE: ", len(series))
+    # time_encode_finish = time.time()
+    # print(f"Encoding with BPE took {time_encode_finish - time_encode_start:.2f} seconds")
 
     train_data = strided_app(series, FLAGS.seq_len + 1, 1)
 

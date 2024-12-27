@@ -42,19 +42,19 @@ class SLiMPerformer(torch.nn.Module):
 
         return x
 
-    def full_loss(self,
-                  inputs,
-                  with_grad=True):
-
-        logits = self.forward(inputs[:, :-1])
-        logits = logits.transpose(1, 2)
-        loss = torch.nn.functional.cross_entropy(
-            logits[:, :, -1], inputs[:, -1], reduction='mean')
-
-        if with_grad:
-            loss.backward()
-
-        return loss, logits
+    # def full_loss(self,
+    #               inputs,
+    #               with_grad=True):
+    #
+    #     logits = self.forward(inputs[:, :-1])
+    #     logits = logits.transpose(1, 2)
+    #     loss = torch.nn.functional.cross_entropy(
+    #         logits[:, :, -1], inputs[:, -1], reduction='mean')
+    #
+    #     if with_grad:
+    #         loss.backward()
+    #
+    #     return loss, logits
 
     def _concat_pos_embs(self, x, start_index):
 

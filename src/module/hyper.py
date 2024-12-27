@@ -27,13 +27,13 @@ def process_control():
     cfg['model']['wresnet28x8'] = {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}
     cfg['model']['gpt1'] = {'n_head': 4, 'n_layer': 4, 'drop_out': 0, 'vocab_size': 257, 'n_embd': 64,
                             'block_size': 828, 'device': 'mps'}
-    cfg['model']['trace'] = {'vocab_size': 512, 'vocab_dim': 64, 'hidden_dim': 256, 'n_layers': 1, 'ffn_dim': 4096,
+    cfg['model']['trace'] = {'vocab_size': 256, 'vocab_dim': 64, 'hidden_dim': 256, 'n_layers': 1, 'ffn_dim': 4096,
                             'n_heads': 1, 'feature_type': 'sqr', 'compute_type': 'iter'}
 
     tag = cfg['tag']
     cfg[tag] = {}
     cfg[tag]['optimizer'] = {}
-    cfg[tag]['optimizer']['optimizer_name'] = 'SGD'
+    cfg[tag]['optimizer']['optimizer_name'] = 'Adam'
     cfg[tag]['optimizer']['lr'] = 1e-3
     cfg[tag]['optimizer']['momentum'] = 0.9
     cfg[tag]['optimizer']['betas'] = (0.9, 0.999)

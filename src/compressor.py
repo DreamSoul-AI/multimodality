@@ -9,7 +9,6 @@ import torch.nn.functional as F
 import torch
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
-from metric import make_logger
 from model import make_model, make_optimizer, make_scheduler
 from module import check, resume, to_device, process_control, arithmeticcoding_fast, decode_token, decode_tokens
 from bpe import BasicTokenizer
@@ -38,13 +37,11 @@ def main():
 def run_experiment():
     time_start = time.time()
     cfg['seed'] = int(cfg['tag'].split('_')[0])
+    np.random.seed(cfg['seed'])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
     cfg['path'] = os.path.join('output', 'exp')
     cfg['tag_path'] = os.path.join(cfg['path'], cfg['tag'])
-    cfg['checkpoint_path'] = os.path.join(cfg['tag_path'], 'checkpoint')
-    cfg['best_path'] = os.path.join(cfg['tag_path'], 'best')
-    cfg['logger_path'] = os.path.join('output', 'logger', 'train', 'runs', cfg['tag'])
     temp_dir = "{}_{}_{}_bs{}_{}_seq{}_temp".format(cfg['model']['trace']['vocab_dim'],
                                                     cfg['model']['trace']['hidden_dim'],
                                                     cfg['model']['trace']['ffn_dim'],
@@ -64,26 +61,7 @@ def run_experiment():
     ori_seq_len = cfg['compressor']['seq_len']
     scaled_seq_len = ori_seq_len * (cfg['model']['trace']['hidden_dim'] // cfg['model']['trace']['vocab_dim'])
     print("seq_len change from {} to {} due to vocab_dim = {} and hidden_dim = {}.".format(ori_seq_len,scaled_seq_len,cfg['model']['trace']['vocab_dim'], cfg['model']['trace']['hidden_dim']))
-    model = make_model(cfg['model'])
 
-    result = resume(cfg['checkpoint_path'], resume_mode=cfg['resume_mode'])
-    if result is None:
-        cfg['step'] = 0
-        model = model.to(cfg['device'])
-        optimizer = make_optimizer(model.parameters(), cfg[cfg['tag']]['optimizer'])
-        scheduler = make_scheduler(optimizer, cfg[cfg['tag']]['optimizer'])
-        # logger = make_logger(cfg['logger_path'], data_name=cfg['data_name'])
-    else:
-        cfg['step'] = result['cfg']['step']
-        model = model.to(cfg['device'])
-        optimizer = make_optimizer(model.parameters(), cfg[cfg['tag']]['optimizer'])
-        scheduler = make_scheduler(optimizer, cfg[cfg['tag']]['optimizer'])
-        logger = make_logger(cfg['logger_path'], data_name=cfg['data_name'])
-        model.load_state_dict(result['model'])
-        optimizer.load_state_dict(result['optimizer'])
-        scheduler.load_state_dict(result['scheduler'])
-        logger.load_state_dict(result['logger'])
-        logger.reset()
 
     input_dir = 'input/dickens_test'
     prefix = cfg['data_name']
@@ -100,30 +78,30 @@ def run_experiment():
     prefix = os.path.join("models", prefix)
 
     # train BPE
-    time_train_start = time.time()
-    tokenizer.train(series, cfg['model']['trace']['vocab_size'], 2, resume=True, verbose=False)
-    time_train_finish = time.time()
-    print(f"Training BPE took {time_train_finish - time_train_start:.2f} seconds")
-    tokenizer.save(prefix)
+    # time_train_start = time.time()
+    # tokenizer.train(series, cfg['model']['trace']['vocab_size'], 2, resume=True, verbose=False)
+    # time_train_finish = time.time()
+    # print(f"Training BPE took {time_train_finish - time_train_start:.2f} seconds")
+    # tokenizer.save(prefix)
 
     # encode with BPE
-    time_encode_start = time.time()
-    tokenizer.load(prefix)  # load trained model
-    series = tokenizer.encode(series)
-    series = np.asarray(series)
-    print("len(series) after BPE: ", len(series))
-    time_encode_finish = time.time()
-    print(f"Encoding with BPE took {time_encode_finish - time_encode_start:.2f} seconds")
+    # time_encode_start = time.time()
+    # tokenizer.load(prefix)  # load trained model
+    # series = tokenizer.encode(series)
+    # series = np.asarray(series)
+    # print("len(series) after BPE: ", len(series))
+    # time_encode_finish = time.time()
+    # print(f"Encoding with BPE took {time_encode_finish - time_encode_start:.2f} seconds")
 
     # arithmeic coding
     train_data = strided_app(series, scaled_seq_len + 1, 1)
     total_length = len(train_data)
     print("\nEncoding: ")
     if total_length % cfg['batch_size'] == 0:
-        encode(temp_dir, compressed_file, model, optimizer, cfg['batch_size'], cfg['model']['trace']['vocab_size'], cfg['compressor']['seq_len'], cfg['print_step'], series, train_data, None)
+        encode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], series, train_data, None)
     else:
         l = total_length // cfg['batch_size'] * cfg['batch_size']
-        encode(temp_dir, compressed_file, model, optimizer, cfg['batch_size'], cfg['model']['trace']['vocab_size'], cfg['compressor']['seq_len'], cfg['print_step'], series[:l + scaled_seq_len], train_data[:l], series[l:])
+        encode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], series[:l + scaled_seq_len], train_data[:l], series[l:])
 
     # Combined compressed results
     f = open(compressed_file + '.combined', 'wb')
@@ -180,26 +158,16 @@ def run_experiment():
 
     len_series = len(series)
     print("\nDecoding: ")
-    if (len_series - cfg['compressor']['seq_len']) % cfg['batch_size'] == 0:
-        decode(temp_dir, compressed_file, model, optimizer, cfg['batch_size'], cfg['model']['trace']['vocab_size'], cfg['compressor']['seq_len'], cfg['print_step'], len_series, 0, bpe_ckpt=prefix)
+    if (len_series - scaled_seq_len) % cfg['batch_size'] == 0:
+        decode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], len_series, 0, cfg['seed'], bpe_ckpt=prefix)
     else:
-        last_length = (len_series - cfg['compressor']['seq_len']) % cfg['batch_size'] + cfg['compressor']['seq_len']
-        decode(temp_dir, compressed_file, model, optimizer, cfg['batch_size'], cfg['model']['trace']['vocab_size'], cfg['compressor']['seq_len'], cfg['print_step'], len_series, last_length, bpe_ckpt=prefix)
+        last_length = (len_series - scaled_seq_len) % cfg['batch_size'] + scaled_seq_len
+        decode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], len_series, last_length, cfg['seed'], bpe_ckpt=prefix)
 
-    # while cfg['step'] < cfg['num_steps']:
-    #     train(data_iterator, model, optimizer, scheduler, logger)
-    #     test(data_loader['test'], model, logger)
-    #     result = {'cfg': cfg, 'model': model.state_dict(),
-    #               'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(),
-    #               'logger': logger.state_dict()}
-    #     check(result, cfg['checkpoint_path'])
-    #     if logger.compare('test'):
-    #         shutil.copytree(cfg['checkpoint_path'], cfg['best_path'], dirs_exist_ok=True)
-    #     logger.reset()
     return
 
 
-def encode(temp_dir, compressed_file, model, optimizer, batch_size ,vocab_size, seq_len, print_step, series, train_data, last_train_data):
+def encode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, seq_len, print_step, series, train_data, last_train_data):
     f = [open(temp_dir + "/" + compressed_file + '.' + str(i), 'wb') for i in range(batch_size)]
     bitout = [arithmeticcoding_fast.BitOutputStream(f[i]) for i in range(batch_size)]
     enc = [arithmeticcoding_fast.ArithmeticEncoder(32, bitout[i]) for i in range(batch_size)]
@@ -219,8 +187,9 @@ def encode(temp_dir, compressed_file, model, optimizer, batch_size ,vocab_size, 
 
     cumul_batch = np.zeros((batch_size, vocab_size + 1), dtype=np.uint64)
 
-    model = model
-    optimizer = optimizer
+    model = make_model(model)
+    model = model.to(cfg['device'])
+    optimizer = make_optimizer(model.parameters(), optimizer)
     print("iter_num: ", iter_num)
     for train_index in range(iter_num):
         model.train()
@@ -230,10 +199,10 @@ def encode(temp_dir, compressed_file, model, optimizer, batch_size ,vocab_size, 
 
         output = model(train_batch)
         logits = output['pred']
+        output['loss'].backward()
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
 
-        logits = logits.transpose(1, 2)
         prob = logits[:, -1, :]
         prob = F.softmax(prob, dim=1).detach().cpu().numpy()
         # print("Shape of prob:", prob.shape)
@@ -276,7 +245,7 @@ def encode(temp_dir, compressed_file, model, optimizer, batch_size ,vocab_size, 
     return
 
 
-def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, seq_len, print_step, len_series, last, bpe_ckpt):
+def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, seq_len, print_step, len_series, last, seed, bpe_ckpt):
     bs = batch_size
 
     iter_num = (len_series - seq_len) // batch_size
@@ -300,20 +269,23 @@ def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
 
     cumul_batch = np.zeros((bs, vocab_size + 1), dtype=np.uint64)
 
-    # np.random.seed(random_seed)
-    # torch.manual_seed(random_seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
 
-    model = model
-
-    optimizer = optimizer
+    model = make_model(model)
+    model = model.to(cfg['device'])
+    optimizer = make_optimizer(model.parameters(), optimizer)
 
     training_start = time.time()
     for train_index in range(iter_num - seq_len):
         model.train()
         train_batch = torch.LongTensor(series_2d[:, train_index:train_index + seq_len]).cuda()
-        logits = model.forward(train_batch)
-        # output = model(train_batch)
-        # logits = output['pred']
+        label = torch.from_numpy(series_2d[:, train_index + 1:train_index + seq_len + 1]).long().cuda()
+        extended_tensor = torch.cat((train_batch, label[:, -1].unsqueeze(1)), dim=1)
+        output = model(extended_tensor)
+        logits = output['pred']
+
         prob = logits[:, -1, :]
         prob = F.softmax(prob, dim=1).detach().cpu().numpy()
 
@@ -323,27 +295,24 @@ def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
         for i in range(bs):
             series_2d[i, train_index + seq_len] = dec[i].read(cumul_batch[i, :], vocab_size)
 
-        logits = logits.transpose(1, 2)
-        label = torch.from_numpy(series_2d[:, train_index + 1:train_index + seq_len + 1]).long().cuda()
-        train_loss = torch.nn.functional.cross_entropy(logits[:, :, -1], label[:, -1], reduction='mean')
-        # train_loss = output['loss']
-        train_loss.backward()
+        output['loss'].backward()
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
 
         if train_index % print_step == 0:
-            print(train_index, ":", train_loss.item() / np.log(2))
+            print(train_index, ":", output['loss'].item() / np.log(2))
 
     # out = open('decompressed', 'w', encoding='utf-8')
     out = open('decompressed', 'w')
     for i in range(len(series_2d)):
         # decode with BPE
-        series_list = series_2d[i].tolist()
-        tokenizer = BasicTokenizer()
-        tokenizer.load(bpe_ckpt)  # load trained model
-        bpe_decoded_list = tokenizer.decode(series_list)
-        array = np.asarray(bpe_decoded_list)
-        out.write(decode_tokens(array))
+        # series_list = series_2d[i].tolist()
+        # tokenizer = BasicTokenizer()
+        # tokenizer.load(bpe_ckpt)  # load trained model
+        # bpe_decoded_list = tokenizer.decode(series_list)
+        # array = np.asarray(bpe_decoded_list)
+        # out.write(decode_tokens(array))
+        out.write(decode_tokens(series_2d[i]))
 
     for i in range(bs):
         bitin[i].close()
@@ -364,11 +333,11 @@ def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
         # print("Last decode part don't need inference.")
 
         # decode with BPE
-        series_list = series.tolist()
-        tokenizer = BasicTokenizer()
-        tokenizer.load(bpe_ckpt)  # load trained model
-        bpe_decoded_list = tokenizer.decode(series_list)
-        series = np.asarray(bpe_decoded_list)
+        # series_list = series.tolist()
+        # tokenizer = BasicTokenizer()
+        # tokenizer.load(bpe_ckpt)  # load trained model
+        # bpe_decoded_list = tokenizer.decode(series_list)
+        # series = np.asarray(bpe_decoded_list)
         # print("Last bpe decoded series: \n", series)
 
         out.write(decode_tokens(series))
