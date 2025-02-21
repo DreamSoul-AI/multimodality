@@ -135,3 +135,10 @@ res/
 /src/models/
 /src/input/
 /src/decompressed
+/src/0_dickens_test_trace/
+test.py
+note.txt
+/src/recovered_images/
+/src/0_t10k-images-idx3-ubyte_trace/
+/src/0_mnist_test_trace/
+/experiment/dzip/files_to_be_compressed/dickens_test

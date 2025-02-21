@@ -26,10 +26,10 @@ torch.set_printoptions(profile="full")
 FLAGS = flags.FLAGS
 
 # Model parameters
-flags.DEFINE_integer('batch_size', 8, 'Batch size for training.')
+flags.DEFINE_integer('batch_size', 512, 'Batch size for training.')
 flags.DEFINE_float('learning_rate', 1e-3, 'Adam Optimizer learning rate.')
 flags.DEFINE_integer('hidden_dim', 256, 'Feature dimension.')
-flags.DEFINE_integer('vocab_dim', 64, 'Feature dimension.')
+flags.DEFINE_integer('vocab_dim', 32, 'Feature dimension.')
 flags.DEFINE_integer('n_layers', 1, 'Number of Attention layers.')
 flags.DEFINE_integer('ffn_dim', 4096, 'MLP dimension in model.')
 flags.DEFINE_integer('n_heads', 1, 'Number of heads for attention.')
@@ -50,7 +50,7 @@ flags.DEFINE_integer('print_step', 100, 'Interval to print metrics.')
 # Dataset parameters
 flags.DEFINE_integer('seq_len', 8, 'Maximum sequence length (L).')
 flags.DEFINE_integer('vocab_size', 256, 'Vocabulary size of data.')
-flags.DEFINE_string('input_dir', 'input/dickens_test', 'input data dir')
+flags.DEFINE_string('input_dir', 'input/image', 'input data dir')
 flags.DEFINE_string('prefix', 'dickens_test', 'output dir')
 
 
@@ -60,7 +60,11 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
     iter_num = (len_series - FLAGS.seq_len) // FLAGS.batch_size
 
     ind = np.array(range(bs)) * iter_num
-    print(iter_num - FLAGS.seq_len)
+    print("batch_size: ", bs)
+    # print("ind: ", ind)
+    print("seq_len: ", FLAGS.seq_len)
+    print("iter_num: ", iter_num)
+    print("iter_num - seq_len: ", iter_num - FLAGS.seq_len)
     series_2d = np.zeros((bs, iter_num), dtype=np.uint8).astype('int')
 
     f = [open(temp_dir + "/" + compressed_file + '.' + str(i), 'rb') for i in range(bs)]
@@ -82,6 +86,11 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
     np.random.seed(FLAGS.random_seed)
     torch.manual_seed(FLAGS.random_seed)
 
+    # np_random_array = np.random.rand(5)
+    # print("def decoder NumPy random array:", np_random_array)
+    # torch_random_tensor = torch.rand(5)
+    # print("def decoder PyTorch random tensor:", torch_random_tensor)
+
     model = compress_model.SLiMPerformer(FLAGS.vocab_size, FLAGS.vocab_dim, FLAGS.hidden_dim, FLAGS.n_layers,
                                          FLAGS.ffn_dim, FLAGS.n_heads, FLAGS.feature_type, FLAGS.compute_type).cuda()
     # print(model)
@@ -89,10 +98,16 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
     optimizer = torch.optim.Adam(model.parameters(), lr=FLAGS.learning_rate, weight_decay=FLAGS.weight_decay,
                                  betas=(.9, .999))
 
+    for train_index in range(iter_num - FLAGS.seq_len):
+        train_batch = torch.LongTensor(series_2d[:, train_index:train_index + FLAGS.seq_len]).cuda()
+        # print("train_index before model.train(): ", train_index)
+        # print("train_batch before model.train(): ", train_batch.shape, train_batch)
     training_start = time.time()
     for train_index in range(iter_num - FLAGS.seq_len):
         model.train()
         train_batch = torch.LongTensor(series_2d[:, train_index:train_index + FLAGS.seq_len]).cuda()
+        # print("train_index: ", train_index)
+        # print("train_batch: ", train_batch.shape, train_batch)
         logits = model.forward(train_batch)
         prob = logits[:, -1, :]
         prob = F.softmax(prob, dim=1).detach().cpu().numpy()
@@ -101,8 +116,9 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
 
         # Decode with Arithmetic Encoder
         for i in range(bs):
-            series_2d[i, train_index + FLAGS.seq_len] = dec[i].read(cumul_batch[i, :], FLAGS.vocab_size)
-
+            series_2d[i, train_index + FLAGS.seq_len] = dec[i] .read(cumul_batch[i, :], FLAGS.vocab_size)
+            # print("i: ", i)
+            # print("train_index + FLAGS.seq_len: ", train_index + FLAGS.seq_len)
         logits = logits.transpose(1, 2)
         label = torch.from_numpy(series_2d[:, train_index + 1:train_index + FLAGS.seq_len + 1]).long().cuda()
         train_loss = torch.nn.functional.cross_entropy(logits[:, :, -1], label[:, -1], reduction='mean')
@@ -112,6 +128,7 @@ def decode(temp_dir, compressed_file, FLAGS, len_series, last, bpe_ckpt):
 
         if train_index % FLAGS.print_step == 0:
             print(train_index, ":", train_loss.item() / np.log(2))
+            # print("label[:, -1]: ", label[:, -1])
 
     # out = open('decompressed', 'w', encoding='utf-8')
     out = open('decompressed', 'w')
@@ -185,6 +202,12 @@ def encode(temp_dir, compressed_file, FLAGS, series, train_data, last_train_data
             enc[i].write(cumul, series[ind[i] + j])
 
     cumul_batch = np.zeros((bs, FLAGS.vocab_size + 1), dtype=np.uint64)
+    np.random.seed(FLAGS.random_seed)
+    torch.manual_seed(FLAGS.random_seed)
+    # np_random_array = np.random.rand(5)
+    # print("def encoder NumPy random array:", np_random_array)
+    # torch_random_tensor = torch.rand(5)
+    # print("def encoder PyTorch random tensor:", torch_random_tensor)
 
     model = compress_model.SLiMPerformer(FLAGS.vocab_size, FLAGS.vocab_dim, FLAGS.hidden_dim,
                                          FLAGS.n_layers, FLAGS.ffn_dim,
@@ -273,6 +296,11 @@ def main(_):
     np.random.seed(FLAGS.random_seed)
     torch.manual_seed(FLAGS.random_seed)
 
+    # np_random_array = np.random.rand(5)
+    # print("def main NumPy random array:", np_random_array)
+    # torch_random_tensor = torch.rand(5)
+    # print("def main PyTorch random tensor:", torch_random_tensor)
+
     temp_dir = "{}_{}_{}_{}_bs{}_{}_seq{}_temp".format(FLAGS.prefix, FLAGS.vocab_dim, FLAGS.hidden_dim, FLAGS.ffn_dim,
                                                        FLAGS.batch_size, FLAGS.n_layers, FLAGS.seq_len)
     compressed_file = temp_dir.replace("_temp", ".compressed")
@@ -296,15 +324,15 @@ def main(_):
     with open(FLAGS.input_dir, 'rb') as fp:  # , encoding='latin-1') as fp:
         series = np.frombuffer(fp.read(), dtype=np.uint8)
     print("len(series): ", len(series))
-    print("series.shape: ", series.shape)
     print("type(series): ", type(series))
     print("series[0]: ", series[0])
     print("series: ", series)
     print("series.max(): ", series.max())
 
-    tokenizer = BasicTokenizer()
     os.makedirs("models", exist_ok=True)
     prefix = os.path.join("models", FLAGS.prefix)
+
+    # tokenizer = BasicTokenizer()
 
     # train BPE
     # time_train_start = time.time()

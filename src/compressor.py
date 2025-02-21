@@ -36,45 +36,38 @@ def main():
 
 def run_experiment():
     time_start = time.time()
+
     cfg['seed'] = int(cfg['tag'].split('_')[0])
     np.random.seed(cfg['seed'])
     torch.manual_seed(cfg['seed'])
     torch.cuda.manual_seed(cfg['seed'])
+
     cfg['path'] = os.path.join('output', 'exp')
     cfg['tag_path'] = os.path.join(cfg['path'], cfg['tag'])
-    temp_dir = "{}_{}_{}_bs{}_{}_seq{}_temp".format(cfg['model']['trace']['vocab_dim'],
-                                                    cfg['model']['trace']['hidden_dim'],
-                                                    cfg['model']['trace']['ffn_dim'],
-                                                    cfg['batch_size'],
-                                                    cfg['model']['trace']['n_layers'],
-                                                    cfg['compressor']['seq_len'])
+    temp_dir = cfg['tag']
     if not os.path.exists(temp_dir):
         os.mkdir(temp_dir)
     compressed_file = temp_dir.replace("_temp", ".compressed")
     print("compressed_file will be {}".format(compressed_file))
 
-    def strided_app(a, L, S):  # Window len = L, Stride len/stepsize = S
-        nrows = ((a.size - L) // S) + 1
-        n = a.strides[0]
-        return np.lib.stride_tricks.as_strided(a, shape=(nrows, L), strides=(S * n, n))
-
     ori_seq_len = cfg['compressor']['seq_len']
     scaled_seq_len = ori_seq_len * (cfg['model']['trace']['hidden_dim'] // cfg['model']['trace']['vocab_dim'])
     print("seq_len change from {} to {} due to vocab_dim = {} and hidden_dim = {}.".format(ori_seq_len,scaled_seq_len,cfg['model']['trace']['vocab_dim'], cfg['model']['trace']['hidden_dim']))
 
-
-    input_dir = 'input/dickens_test'
     prefix = cfg['data_name']
+    input_dir = os.path.join('input', prefix)
+
     with open(input_dir, 'rb') as fp:  # , encoding='latin-1') as fp:
         series = np.frombuffer(fp.read(), dtype=np.uint8)
     print("len(series): ", len(series))
-    print("series.shape: ", series.shape)
-    print("type(series): ", type(series))
+    # print("series.shape: ", series.shape)
+    # print("type(series): ", type(series))
     print("series[0]: ", series[0])
-    print("series: ", series)
-    print("series.max(): ", series.max())
-    tokenizer = BasicTokenizer()
-    os.makedirs("models", exist_ok=True)
+    # print("series: ", series)
+    # print("series.max(): ", series.max())
+
+    # tokenizer = BasicTokenizer()
+    # os.makedirs("models", exist_ok=True)
     prefix = os.path.join("models", prefix)
 
     # train BPE
@@ -98,10 +91,10 @@ def run_experiment():
     total_length = len(train_data)
     print("\nEncoding: ")
     if total_length % cfg['batch_size'] == 0:
-        encode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], series, train_data, None)
+        encode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], series, train_data, None, cfg['seed'])
     else:
         l = total_length // cfg['batch_size'] * cfg['batch_size']
-        encode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], series[:l + scaled_seq_len], train_data[:l], series[l:])
+        encode(temp_dir, compressed_file, cfg['model'], cfg[cfg['tag']]['optimizer'], cfg['batch_size'], cfg['model']['trace']['vocab_size'], scaled_seq_len, cfg['print_step'], series[:l + scaled_seq_len], train_data[:l], series[l:], cfg['seed'])
 
     # Combined compressed results
     f = open(compressed_file + '.combined', 'wb')
@@ -167,7 +160,7 @@ def run_experiment():
     return
 
 
-def encode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, seq_len, print_step, series, train_data, last_train_data):
+def encode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, seq_len, print_step, series, train_data, last_train_data, seed):
     f = [open(temp_dir + "/" + compressed_file + '.' + str(i), 'wb') for i in range(batch_size)]
     bitout = [arithmeticcoding_fast.BitOutputStream(f[i]) for i in range(batch_size)]
     enc = [arithmeticcoding_fast.ArithmeticEncoder(32, bitout[i]) for i in range(batch_size)]
@@ -187,6 +180,13 @@ def encode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
 
     cumul_batch = np.zeros((batch_size, vocab_size + 1), dtype=np.uint64)
 
+    # np.random.seed(seed)
+    # torch.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
+    # np_random_array = np.random.rand(5)
+    # print("def encoder NumPy random array:", np_random_array)
+    # torch_random_tensor = torch.rand(5)
+    # print("def encoder PyTorch random tensor:", torch_random_tensor)
     model = make_model(model)
     model = model.to(cfg['device'])
     optimizer = make_optimizer(model.parameters(), optimizer)
@@ -246,28 +246,30 @@ def encode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
 
 
 def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, seq_len, print_step, len_series, last, seed, bpe_ckpt):
-    bs = batch_size
-
     iter_num = (len_series - seq_len) // batch_size
 
-    ind = np.array(range(bs)) * iter_num
-    print(iter_num - seq_len)
-    series_2d = np.zeros((bs, iter_num), dtype=np.uint8).astype('int')
+    ind = np.array(range(batch_size)) * iter_num
+    print("batch_size: ", batch_size)
+    # print("ind: ", ind)
+    print("seq_len: ", seq_len)
+    print("iter_num: ", iter_num)
+    # print("iter_num - seq_len: ", iter_num - seq_len)
+    series_2d = np.zeros((batch_size, iter_num), dtype=np.uint8).astype('int')
 
-    f = [open(temp_dir + "/" + compressed_file + '.' + str(i), 'rb') for i in range(bs)]
-    bitin = [arithmeticcoding_fast.BitInputStream(f[i]) for i in range(bs)]
-    dec = [arithmeticcoding_fast.ArithmeticDecoder(32, bitin[i]) for i in range(bs)]
+    f = [open(temp_dir + "/" + compressed_file + '.' + str(i), 'rb') for i in range(batch_size)]
+    bitin = [arithmeticcoding_fast.BitInputStream(f[i]) for i in range(batch_size)]
+    dec = [arithmeticcoding_fast.ArithmeticDecoder(32, bitin[i]) for i in range(batch_size)]
 
     prob = np.ones(vocab_size) / vocab_size
     cumul = np.zeros(vocab_size + 1, dtype=np.uint64)
     cumul[1:] = np.cumsum(prob * 10000000 + 1)
 
     # Decode first K symbols in each stream with uniform probabilities
-    for i in range(bs):
+    for i in range(batch_size):
         for j in range(min(seq_len, iter_num)):
             series_2d[i, j] = dec[i].read(cumul, vocab_size)
 
-    cumul_batch = np.zeros((bs, vocab_size + 1), dtype=np.uint64)
+    cumul_batch = np.zeros((batch_size, vocab_size + 1), dtype=np.uint64)
 
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -281,20 +283,21 @@ def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
     for train_index in range(iter_num - seq_len):
         model.train()
         train_batch = torch.LongTensor(series_2d[:, train_index:train_index + seq_len]).cuda()
-        label = torch.from_numpy(series_2d[:, train_index + 1:train_index + seq_len + 1]).long().cuda()
-        extended_tensor = torch.cat((train_batch, label[:, -1].unsqueeze(1)), dim=1)
-        output = model(extended_tensor)
+        padded_train_batch = F.pad(train_batch, (0, 1))
+        output = model(padded_train_batch)
         logits = output['pred']
 
         prob = logits[:, -1, :]
         prob = F.softmax(prob, dim=1).detach().cpu().numpy()
-
         cumul_batch[:, 1:] = np.cumsum(prob * 10000000 + 1, axis=1)
 
         # Decode with Arithmetic Encoder
-        for i in range(bs):
+        for i in range(batch_size):
             series_2d[i, train_index + seq_len] = dec[i].read(cumul_batch[i, :], vocab_size)
 
+        label = torch.from_numpy(series_2d[:, train_index + 1:train_index + seq_len + 1]).long().cuda()
+        extended_tensor = torch.cat((train_batch, label[:, -1].unsqueeze(1)), dim=1)
+        output = model(extended_tensor)
         output['loss'].backward()
         optimizer.step()
         optimizer.zero_grad(set_to_none=True)
@@ -302,7 +305,6 @@ def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
         if train_index % print_step == 0:
             print(train_index, ":", output['loss'].item() / np.log(2))
 
-    # out = open('decompressed', 'w', encoding='utf-8')
     out = open('decompressed', 'w')
     for i in range(len(series_2d)):
         # decode with BPE
@@ -314,7 +316,7 @@ def decode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
         # out.write(decode_tokens(array))
         out.write(decode_tokens(series_2d[i]))
 
-    for i in range(bs):
+    for i in range(batch_size):
         bitin[i].close()
         f[i].close()
 

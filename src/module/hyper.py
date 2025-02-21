@@ -15,6 +15,7 @@ def process_control():
 
     cfg['compressor'] = {}
     cfg['compressor']['seq_len'] = 8
+    cfg['compressor']['vocab_size'] = 256
 
     cfg['model'] = {}
     cfg['model']['model_name'] = cfg['model_name']
@@ -29,6 +30,10 @@ def process_control():
                             'block_size': 828, 'device': 'mps'}
     cfg['model']['trace'] = {'vocab_size': 256, 'vocab_dim': 64, 'hidden_dim': 256, 'n_layers': 1, 'ffn_dim': 4096,
                             'n_heads': 1, 'feature_type': 'sqr', 'compute_type': 'iter'}
+    cfg['model']['bootstrap'] = {'vocab_size': 256, 'emb_size': 16,
+        'length': 16, 'jump': 16,
+        'hdim1': 128, 'hdim2': 256, 'n_layers': 2,
+        'bidirectional': True}
 
     tag = cfg['tag']
     cfg[tag] = {}
