@@ -3,7 +3,7 @@
 control:
   data_name: dickens_test
   model_name: trace
-# experiment
+# archive
 pin_memory: True
 num_workers: 0
 init_seed: 0

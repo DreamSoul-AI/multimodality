@@ -9,9 +9,9 @@ class Base(nn.Module):
         self.model = model
         self.loss = make_loss
 
-    def forward(self, **input):
+    def forward(self, input):
         output = {}
-        output['pred'] = self.model(input['data'])
+        output['pred'] = self.model(input[:, :-1])
         output['loss'] = self.loss(output, input)
         return output
 

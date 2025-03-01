@@ -1,4 +1,3 @@
-import os
 import yaml
 
 global cfg
@@ -10,16 +9,10 @@ delimiters = ['_', '-', '~', ';', '#']
 
 
 def process_args(args):
-    global cfg
-    if 'control_name' in args and args['control_name'] is not None:
-        config_path = os.path.join('output', 'config', '{}.yml'.format(args['control_name']))
-        with open(config_path, 'r') as f:
-            parsed_cfg = yaml.load(f, Loader=yaml.FullLoader)
-        for k in parsed_cfg:
-            cfg[k] = parsed_cfg[k]
     for k in cfg:
-        if k != 'control':
-            cfg[k] = args[k]
+        cfg[k] = args[k]
+    if 'control_name' in args and args['control_name'] is not None:
+        cfg['control'] = make_control(cfg['control'], args['control_name'])
     if cfg['control'] is not None:
         cfg['control_name'] = make_control_name(cfg['control'])
     return

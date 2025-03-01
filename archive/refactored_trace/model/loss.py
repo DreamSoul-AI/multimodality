@@ -3,10 +3,9 @@ import torch.nn.functional as F
 
 
 def make_loss(output, input):
-    if 'target' in input:
-        loss = loss_fn(output['pred'], input['target'])
-    else:
-        return
+    output['pred'] = output['pred'].transpose(1, 2)
+    loss = loss_fn(output['pred'][:, :, -1], input[:, -1])
+    output['pred'] = output['pred'].transpose(1, 2)
     return loss
 
 

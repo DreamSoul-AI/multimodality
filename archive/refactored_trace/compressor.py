@@ -1,5 +1,4 @@
 import argparse
-import datetime
 import os
 import shutil
 import struct
@@ -9,9 +8,8 @@ import torch.nn.functional as F
 import torch
 import torch.backends.cudnn as cudnn
 from config import cfg, process_args
-from model import make_model, make_optimizer, make_scheduler
-from module import check, resume, to_device, process_control, arithmeticcoding_fast, decode_token, decode_tokens
-from bpe import BasicTokenizer
+from model import make_model, make_optimizer
+from module import process_control, arithmeticcoding_fast, decode_tokens
 
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')

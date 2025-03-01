@@ -8,7 +8,7 @@ root_dataset_path = 'dataset/mnist/'
 def load_mnist():
     if not os.path.exists(root_dataset_path):
         os.makedirs(root_dataset_path)
-        train_data = torchvision.datasets.MNIST("./", train=True, transform=torchvision.transforms.ToTensor(), download=True)
+        train_data = torchvision.datasets.MNIST("/", train=True, transform=torchvision.transforms.ToTensor(), download=True)
         for i,data in enumerate(train_data):
             img = data[0]
             label = data[1]
