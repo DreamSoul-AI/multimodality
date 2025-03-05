@@ -8,6 +8,8 @@ import numpy as np
 from PIL import Image
 from tqdm import tqdm
 from collections import Counter
+import torch
+
 
 IMG_EXTENSIONS = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif')
 
@@ -166,3 +168,7 @@ class Compose(object):
             format_string += '    {0}'.format(t)
         format_string += '\n)'
         return format_string
+
+class ToTensorForSequence(object):
+    def __call__(self, input):
+        return torch.tensor(input, dtype=torch.float32)  # Convert sequence to tensor

@@ -17,7 +17,7 @@ def save(input, path, mode='torch'):
     dirname = os.path.dirname(path)
     makedir_exist_ok(dirname)
     if mode == 'torch':
-        torch.save(input, path)
+        torch.save(input, path, pickle_protocol=4)
     elif mode == 'np':
         np.save(path, input, allow_pickle=True)
     elif mode == 'pickle':

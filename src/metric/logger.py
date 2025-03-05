@@ -29,7 +29,7 @@ class Logger:
         self.mean = defaultdict(int)
         self.history = defaultdict(list)
         self.iterator = defaultdict(int)
-        self.metric = make_metric(['train', 'test'], **kwargs)
+        self.metric = make_metric(['train'], **kwargs)
 
     def save(self, flush):
         for name in self.mean:

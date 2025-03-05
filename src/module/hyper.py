@@ -6,7 +6,8 @@ def process_control():
     cfg['data_name'] = cfg['control']['data_name']
     cfg['model_name'] = cfg['control']['model_name']
 
-    cfg['batch_size'] = 250
+    cfg['batch_size'] = 2048
+    cfg['timesteps'] = 64
     cfg['step_period'] = 1
     cfg['num_steps'] = 80000
     cfg['eval_period'] = 200
@@ -25,10 +26,9 @@ def process_control():
     cfg['model']['wresnet28x2'] = {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}
     cfg['model']['wresnet28x8'] = {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}
     cfg['model']['bootstrap'] = {'vocab_size': 256, 'emb_size': 16,
-        'length': 16, 'jump': 16,
+        'length': 64, 'jump': 16,
         'hdim1': 128, 'hdim2': 256, 'n_layers': 2,
         'bidirectional': True}
-    cfg['model']['stats'] = make_stats(cfg['control']['data_name'])
 
     tag = cfg['tag']
     cfg[tag] = {}

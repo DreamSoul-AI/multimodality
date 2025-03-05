@@ -9,68 +9,15 @@ from module import apply_recursively
 from config import cfg
 
 
-def make_dataset(data_name, transform=True, process=False, verbose=True):
+def make_dataset(data_name, batch_size=2048, timesteps=64, transform=True, process=False, verbose=True):
     dataset_ = {}
     if verbose:
         print('fetching data {}...'.format(data_name))
     root = os.path.join('data', data_name)
 
-    if data_name in ['MNIST', 'FashionMNIST']:
-        dataset_['train'] = eval('dataset.{}(root=root, split="train", process=process, '
-                                 'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset_['test'] = eval('dataset.{}(root=root, split="test", '
-                                'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        if transform:
-            data_stats = (cfg['model']['stats'].mean.tolist(), cfg['model']['stats'].std.tolist())
-            dataset_['train'].transform = dataset.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
-            dataset_['test'].transform = dataset.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
-    elif data_name in ['CIFAR10', 'CIFAR100']:
-        dataset_['train'] = eval('dataset.{}(root=root, split="train", process=process, '
-                                 'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset_['test'] = eval('dataset.{}(root=root, split="test", '
-                                'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        if transform:
-            data_stats = (cfg['model']['stats'].mean.tolist(), cfg['model']['stats'].std.tolist())
-            dataset_['train'].transform = dataset.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
-            dataset_['test'].transform = dataset.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
-    elif data_name in ['SVHN']:
-        dataset_['train'] = eval('dataset.{}(root=root, split="train", process=process, '
-                                 'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset_['test'] = eval('dataset.{}(root=root, split="test", '
-                                'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        if transform:
-            data_stats = (cfg['model']['stats'].mean.tolist(), cfg['model']['stats'].std.tolist())
-            dataset_['train'].transform = dataset.Compose([
-                transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
-            dataset_['test'].transform = dataset.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
-    elif data_name in ['DICKENS']:
-        dataset_['train'] = eval('dataset.{}(root=root, split="train", process=process, '
-                                 'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        dataset_['test'] = eval('dataset.{}(root=root, split="test", '
-                                'transform=dataset.Compose([transforms.ToTensor()]))'.format(data_name))
-        if transform:
-            data_stats = (cfg['model']['stats'].mean.tolist(), cfg['model']['stats'].std.tolist())
-            dataset_['train'].transform = dataset.Compose([
-                transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
-            dataset_['test'].transform = dataset.Compose([
-                transforms.ToTensor(),
-                transforms.Normalize(*data_stats)])
+    if data_name in ['DICKENS']:
+        dataset_['train'] = eval('dataset.{}(root=root, batch_size=batch_size, timesteps=timesteps, split="train", '
+                                 'process=process)'.format(data_name))
     else:
         raise ValueError('Not valid dataset name')
     if verbose:
@@ -97,6 +44,7 @@ def input_collate(input):
     identity_condition = lambda x: isinstance(x, (str, type(None)))
     for i in range(len(input)):
         input_i = input[i]
+        # print("i: {}, input_i: {}".format(i, input_i))
         apply_recursively(add_, input_i, apply_condition=apply_condition, identity_condition=identity_condition)
     return batch
 
@@ -143,7 +91,6 @@ def process_dataset(dataset):
     processed_dataset = dataset
     cfg['num_samples'] = {k: len(processed_dataset[k]) for k in processed_dataset}
     cfg['model']['data_size'] = dataset['train'].data_size
-    cfg['model']['target_size'] = dataset['train'].target_size
     if 'num_epochs' in cfg:
         cfg['num_steps'] = int(np.ceil(len(processed_dataset['train']) / cfg['batch_size'])) * cfg['num_epochs']
         cfg['eval_period'] = int(np.ceil(len(processed_dataset['train']) / cfg['batch_size']))

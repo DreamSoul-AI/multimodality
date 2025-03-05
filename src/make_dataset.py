@@ -12,6 +12,8 @@ if __name__ == "__main__":
     data_names = ['DICKENS']
     with torch.no_grad():
         for data_name in data_names:
+            root = os.path.join('data', data_name)
+
             directory = f'data/{data_name}/raw/'
             files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
             filename = files[0] if files else None
@@ -36,7 +38,7 @@ if __name__ == "__main__":
             out = [char2id_dict[c] for c in data]
             integer_encoded = np.array(out)
 
-            dict_path = os.path.join('output', 'dict', data_name)
+            dict_path = os.path.join(root, 'dict')
             makedir_exist_ok(dict_path)
             save(integer_encoded, os.path.join(dict_path, '{}'.format(filename)), 'np')
 
