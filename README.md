@@ -3,10 +3,10 @@
 ## [Update] - 2025-03-07
 
 ### Update
-- Refactor compressing.
+- Refactor compressing and decompressing.
 
 ### Todo
-- Refactor decompressing.
+- Add more models and datasets.
 
 ## [Update] - 2025-03-05
 
