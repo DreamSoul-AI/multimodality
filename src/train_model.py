@@ -67,13 +67,10 @@ def runExperiment():
     data_iterator = enumerate(data_loader['train'])
     while cfg['step'] < cfg['num_steps']:
         train(data_iterator, model, optimizer, scheduler, logger)
-        test(data_loader['test'], model, logger)
         result = {'cfg': cfg, 'model': model.state_dict(),
                   'optimizer': optimizer.state_dict(), 'scheduler': scheduler.state_dict(),
                   'logger': logger.state_dict()}
         check(result, cfg['checkpoint_path'])
-        if logger.compare('test'):
-            shutil.copytree(cfg['checkpoint_path'], cfg['best_path'], dirs_exist_ok=True)
         logger.reset()
     return
 
@@ -116,29 +113,6 @@ def train(data_loader, model, optimizer, scheduler, logger):
                 cfg['step'] += 1
             if (idx + 1) % cfg['eval_period'] == 0 and (i + 1) % cfg['step_period'] == 0:
                 break
-    return
-
-
-def test(data_loader, model, logger):
-    with torch.no_grad():
-        model.train(False)
-        num_steps = len(data_loader) if cfg['eval']['num_steps'] == -1 else cfg['eval']['num_steps']
-        for i, input in enumerate(data_loader):
-            input_size = input['data'].size(0)
-            input = to_device(input, cfg['device'])
-            output = model(**input)
-            evaluation = logger.evaluate('test', 'batch', input, output)
-            logger.append(evaluation, 'test', input_size)
-            logger.add('test', input, output)
-            if (i + 1) == num_steps:
-                break
-        evaluation = logger.evaluate('test', 'full')
-        logger.append(evaluation, 'test', input_size)
-        info = {'info': ['Model: {}'.format(cfg['tag']),
-                         'Test Epoch: {}({:.0f}%)'.format(cfg['step'] // cfg['eval_period'], 100.)]}
-        logger.append(info, 'test')
-        print(logger.write('test'))
-        logger.save(True)
     return
 
 

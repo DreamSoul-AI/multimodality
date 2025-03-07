@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import numpy as np
 
 
 def make_loss(output, input):
@@ -10,13 +11,13 @@ def make_loss(output, input):
     return loss
 
 
-def loss_fn(output, target, reduction='mean'):
-    if target.dtype == torch.int64:
-        loss = F.cross_entropy(output, target, reduction=reduction)
-    else:
-        loss = kld_loss(output, target, reduction=reduction)
+def loss_fn(output, target):
+    loss = 1/np.log(2) * F.nll_loss(output, target)
     return loss
 
+def loss_function(pred, target):
+    loss = 1/np.log(2) * F.nll_loss(pred, target)
+    return loss
 
 def cross_entropy_loss(output, target, reduction='mean'):
     if target.dtype != torch.int64:

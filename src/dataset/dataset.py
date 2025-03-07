@@ -7,19 +7,55 @@ from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 from module import apply_recursively
 from config import cfg
+import json
+import glob
 
 
-def make_dataset(data_name, batch_size=2048, timesteps=64, transform=True, process=False, verbose=True):
+def make_dataset(data_name, batch_size=2048, seq_len=64, transform=True, process=False, verbose=True):
     dataset_ = {}
     if verbose:
         print('fetching data {}...'.format(data_name))
     root = os.path.join('data', data_name)
 
     if data_name in ['DICKENS']:
-        dataset_['train'] = eval('dataset.{}(root=root, batch_size=batch_size, timesteps=timesteps, split="train", '
+        dataset_['train'] = eval('dataset.{}(root=root, batch_size=batch_size, seq_len=seq_len, split="train", '
                                  'process=process)'.format(data_name))
     else:
         raise ValueError('Not valid dataset name')
+    if verbose:
+        print('data ready')
+    return dataset_
+
+
+def make_compression_dataset(data_name, output_path, num_chunks, seq_len, verbose=True):
+    if verbose:
+        print('fetching data {}...'.format(data_name))
+    root = os.path.join('data', data_name)
+    dict_folder = os.path.join(root, 'dict')
+
+    npy_files = [f for f in os.listdir(dict_folder) if f.endswith('.npy')]
+    series = np.load(os.path.join(dict_folder, npy_files[0]))
+    series = series.reshape(-1)
+    series = series.copy()
+
+    params_file_name = next(f for f in os.listdir(dict_folder) if f.startswith('params_'))
+    params_file_path = os.path.join(dict_folder, params_file_name)
+    with open(params_file_path, 'r') as f:
+        params = json.load(f)
+    params['len_series'] = len(series)
+    params['num_chunks'] = num_chunks
+    params['seq_len'] = seq_len
+    with open(output_path+'.params','w') as f:
+        json.dump(params, f, indent=4)
+
+    reshaped_series = strided_app(series, seq_len + 1, 1)
+
+    train_data = reshaped_series[:, :-1]
+    train_target = reshaped_series[:, -1]
+    truncating_len = int(len(reshaped_series) / num_chunks) * num_chunks
+
+    dataset_ = {'series': series, 'train_data': train_data, 'train_target': train_target, 'length': params['len_series'], 'truncating_len': truncating_len}
+
     if verbose:
         print('data ready')
     return dataset_
@@ -97,3 +133,8 @@ def process_dataset(dataset):
         cfg[cfg['tag']]['optimizer']['num_steps'] = cfg['num_steps']
     return processed_dataset
 
+
+def strided_app(a, L, S):  # Window len = L, Stride len = S
+    nrows = ((a.size - L) // S) + 1
+    n = a.strides[0]
+    return np.lib.stride_tricks.as_strided(a, shape=(nrows, L), strides=(S * n, n), writeable=False)

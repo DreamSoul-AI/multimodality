@@ -2,6 +2,7 @@ import inspect
 import torch
 from collections.abc import Iterable, Mapping
 from itertools import repeat
+import struct
 
 
 def filter_args(func, arg_dict):
@@ -53,3 +54,14 @@ def to_device(input, device):
     output = apply_recursively(fn, input, device,
                                apply_condition=apply_condition, identity_condition=identity_condition)
     return output
+
+
+def var_int_encode(byte_str_len, f):
+    while True:
+        this_byte = byte_str_len & 127
+        byte_str_len >>= 7
+        if byte_str_len == 0:
+            f.write(struct.pack('B', this_byte))
+            break
+        f.write(struct.pack('B', this_byte | 128))
+        byte_str_len -= 1

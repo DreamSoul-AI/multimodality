@@ -1,8 +1,16 @@
 # Multimodality
 
+## [Update] - 2025-03-07
+
+### Update
+- Refactor compressing.
+
+### Todo
+- Refactor decompressing.
+
 ## [Update] - 2025-03-05
 
-### Note
+### Update
 - Refactor in a new way from scratch, referring to RPipe and Dzip.
 - Refactor sequence model training.
 

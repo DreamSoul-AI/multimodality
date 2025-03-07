@@ -9,12 +9,12 @@ from module import check_exists, makedir_exist_ok, save, load
 class DICKENS(Dataset):
     data_name = 'DICKENS'
 
-    def __init__(self, root, batch_size, timesteps, split, process=False, transform=None):
+    def __init__(self, root, batch_size, seq_len, split, process=False, transform=None):
         self.root = os.path.expanduser(root)
         self.split = split
         self.transform = transform
         self.batch_size = batch_size
-        self.timesteps = timesteps
+        self.seq_len = seq_len
         if not check_exists(self.processed_folder) or process:
             self.process()
         self.id, self.data, self.target = load(os.path.join(self.processed_folder, self.split), mode='torch')
@@ -27,7 +27,8 @@ class DICKENS(Dataset):
     def __getitem__(self, index):
         if torch.is_tensor(index):
             index = index.tolist()
-        id, data, target = torch.tensor(self.id[index]), torch.tensor(self.data[index]), torch.tensor(self.target[index])
+        id, data, target = torch.tensor(self.id[index]), torch.tensor(self.data[index]), torch.tensor(
+            self.target[index]).type(torch.LongTensor)
         input = {'id': id, 'data': data, 'target': target}
         if self.transform is not None:
             input = self.transform(input)
@@ -68,16 +69,23 @@ class DICKENS(Dataset):
         series = np.load(os.path.join(self.dict_folder, npy_files[0]))
         series = series.reshape(-1)
         series = series.copy()
-        reshaped_series = strided_app(series, self.timesteps + 1, 1)
-        l = int(len(reshaped_series) / self.batch_size) * self.batch_size
+        reshaped_series = strided_app(series, self.seq_len + 1, 1)
 
-        truncated_reshaped_series = reshaped_series[:l]
-        train_data = truncated_reshaped_series[:, :-1]
-        train_target = truncated_reshaped_series[:, -1]
+        '''Training truncation'''
+        truncating_len = int(len(reshaped_series) / self.batch_size) * self.batch_size
+        truncated_reshaped_series = reshaped_series[:truncating_len]
+        reshaped_series = truncated_reshaped_series
+
+        train_data = reshaped_series[:, :-1]
+        train_target = reshaped_series[:, -1]
         train_id = np.arange(len(train_data)).astype(np.int64)
-        data_size = (1, self.timesteps)  # occupancy purpose
+
+        data_size = (1, self.seq_len)  # occupancy purpose
         target_size = 256  # occupancy purpose
-        print("train_data: {}, train_target: {}, data_size: {}".format(train_data.shape, train_target.shape, data_size))
+
+        # print("train_data: {}, train_target: {}, data_size: {}".format(train_data.shape, train_target.shape,
+        # data_size))
+
         return (train_id, train_data, train_target), (data_size, target_size)
 
 
@@ -85,5 +93,3 @@ def strided_app(a, L, S):  # Window len = L, Stride len = S
     nrows = ((a.size - L) // S) + 1
     n = a.strides[0]
     return np.lib.stride_tricks.as_strided(a, shape=(nrows, L), strides=(S * n, n), writeable=False)
-
-

@@ -7,9 +7,11 @@ def process_control():
     cfg['model_name'] = cfg['control']['model_name']
 
     cfg['batch_size'] = 2048
-    cfg['timesteps'] = 64
+    cfg['num_chunks'] = 100
+    cfg['seq_len'] = 64
+    cfg['vocab_size'] = 256
     cfg['step_period'] = 1
-    cfg['num_steps'] = 80000
+    cfg['num_steps'] = 8000
     cfg['eval_period'] = 200
     cfg['eval'] = {}
     cfg['eval']['num_steps'] = -1
