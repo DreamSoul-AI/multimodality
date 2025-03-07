@@ -52,7 +52,7 @@ def make_compression_dataset(data_name, output_path, num_chunks, seq_len, verbos
 
     train_data = reshaped_series[:, :-1]
     train_target = reshaped_series[:, -1]
-    truncating_len = int(len(reshaped_series) / num_chunks) * num_chunks
+    truncating_len = int(len(series) / num_chunks) * num_chunks
 
     dataset_ = {'series': series, 'train_data': train_data, 'train_target': train_target, 'length': params['len_series'], 'truncating_len': truncating_len}
 

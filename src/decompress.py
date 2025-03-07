@@ -6,9 +6,10 @@ from config import cfg, process_args
 from dataset import make_compression_dataset
 from metric import make_logger
 from model import make_model
-from module import var_int_encode, resume, to_device, process_control, BitOutputStream, ArithmeticEncoder
+from module import var_int_decode, resume, to_device, process_control, BitInputStream, ArithmeticDecoder
 import numpy as np
 import shutil
+import json
 
 
 cudnn.benchmark = True
@@ -47,6 +48,34 @@ def runExperiment():
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
+    f = open(output_path+'.params','r')
+    params = json.loads(f.read())
+    f.close()
+
+    num_chunks = params['num_chunks']
+    seq_len = params['seq_len']
+    len_series = params['len_series']
+    id2char_dict = params['id2char_dict']
+    vocab_size = 256
+
+    # Break into multiple streams
+    f = open(output_path+'.combined','rb')
+    for i in range(num_chunks):
+        f_out = open(temp_file_prefix+'.'+str(i),'wb')
+        byte_str_len = var_int_decode(f)
+        byte_str = f.read(byte_str_len)
+        f_out.write(byte_str)
+        f_out.close()
+    f_out = open(temp_file_prefix+'.last','wb')
+    byte_str_len = var_int_decode(f)
+    byte_str = f.read(byte_str_len)
+    f_out.write(byte_str)
+    f_out.close()
+    f.close()
+
+    series = np.zeros(len_series,dtype=np.uint8)
+    l = int(len(series)/num_chunks)*num_chunks
+
     model = make_model(cfg['model'])
     result = resume(cfg['checkpoint_path'])
     if result is None:
@@ -55,77 +84,55 @@ def runExperiment():
     model = model.to(cfg['device'])
     model.load_state_dict(result['model'])
 
-    dataset = make_compression_dataset(cfg['data_name'], output_path, cfg['num_chunks'], cfg['seq_len'])
-    series = dataset['series']
-    train_data = dataset['train_data']
-    train_target = dataset['train_target']
-    length = dataset['length']
-    truncating_len = dataset['truncating_len']
-
-    compress(model, train_data, train_target, cfg['num_chunks'], cfg['vocab_size'], cfg['seq_len'], temp_file_prefix)
-    if truncating_len < length - cfg['seq_len']:
-        compress(model, train_data[truncating_len:], train_target[truncating_len:], 1, cfg['vocab_size'],
-                 cfg['seq_len'], temp_file_prefix, final_step=True)
+    series[:l] = decompress(model, l, num_chunks, vocab_size, seq_len, temp_file_prefix)
+    if l < len_series - seq_len:
+        series[l:] = decompress(model, len_series - l, 1, vocab_size, seq_len, temp_file_prefix, final_step=True)
     else:
-        f = open(temp_file_prefix + '.last', 'wb')
-        bitout = BitOutputStream(f)
-        enc = ArithmeticEncoder(32, bitout)
-        prob = np.ones(cfg['vocab_size']) / cfg['vocab_size']
+        f = open(temp_file_prefix + '.last', 'rb')
+        bitin = BitInputStream(f)
+        dec = ArithmeticDecoder(32, bitin)
+        prob = np.ones(vocab_size) / vocab_size
 
-        cumul = np.zeros(cfg['vocab_size'] + 1, dtype=np.uint64)
+        cumul = np.zeros(vocab_size + 1, dtype=np.uint64)
         cumul[1:] = np.cumsum(prob * 10000000 + 1)
-        for j in range(truncating_len, length):
-            enc.write(cumul, series[j])
-        enc.finish()
-        bitout.close()
+        for j in range(l, len_series):
+            series[j] = dec.read(cumul, vocab_size)
+
+        bitin.close()
         f.close()
 
-    print("Done")
-
-    # combine files into one file
-    f = open(output_path + '.combined', 'wb')
-    for i in range(cfg['num_chunks']):
-        f_in = open(temp_file_prefix + '.' + str(i), 'rb')
-        byte_str = f_in.read()
-        byte_str_len = len(byte_str)
-        var_int_encode(byte_str_len, f)
-        f.write(byte_str)
-        f_in.close()
-    f_in = open(temp_file_prefix + '.last', 'rb')
-    byte_str = f_in.read()
-    byte_str_len = len(byte_str)
-    var_int_encode(byte_str_len, f)
-    f.write(byte_str)
-    f_in.close()
+    # np.save(FLAGS.output, series)
+    f = open(output_path + '.decompressed', 'wb')
+    f.write(bytearray([id2char_dict[str(s)] for s in series]))
     f.close()
     shutil.rmtree(temp_dir)
 
-    return
 
-
-def compress(model, X, Y, num_chunks, vocab_size, seq_len, temp_file_prefix, final_step=False):
+def decompress(model, len_series, num_chunks, vocab_size, seq_len, temp_file_prefix, final_step=False):
     if not final_step:
-        num_iters = (len(X) + seq_len) // num_chunks
-        index = np.array(range(num_chunks)) * num_iters
+        num_iters = len_series // num_chunks
+        series_2d = np.zeros((num_chunks, num_iters), dtype=np.uint8).astype('int')
+        ind = np.array(range(num_chunks)) * num_iters
 
-        f = [open(temp_file_prefix + '.' + str(i), 'wb') for i in range(num_chunks)]
-        bitout = [BitOutputStream(f[i]) for i in range(num_chunks)]
-        enc = [ArithmeticEncoder(32, bitout[i]) for i in range(num_chunks)]
+        f = [open(temp_file_prefix + '.' + str(i), 'rb') for i in range(num_chunks)]
+        bitin = [BitInputStream(f[i]) for i in range(num_chunks)]
+        dec = [ArithmeticDecoder(32, bitin[i]) for i in range(num_chunks)]
 
         prob = np.ones(vocab_size) / vocab_size
         cumul = np.zeros(vocab_size + 1, dtype=np.uint64)
         cumul[1:] = np.cumsum(prob * 10000000 + 1)
 
-        # Encode first K symbols in each stream with uniform probabilities
+        # Decode first K symbols in each stream with uniform probabilities
         for i in range(num_chunks):
             for j in range(min(seq_len, num_iters)):
-                enc[i].write(cumul, X[index[i], j])
+                series_2d[i, j] = dec[i].read(cumul, vocab_size)
 
         cumul = np.zeros((num_chunks, vocab_size + 1), dtype=np.uint64)
 
         for j in (range(num_iters - seq_len)):
-            train_data = torch.from_numpy(X[index, :])
-            train_target = torch.from_numpy(Y[index]).type(torch.LongTensor)
+            # Create Batch
+            train_data = torch.from_numpy(series_2d[:, j:j + seq_len])
+            train_target = torch.from_numpy(series_2d[:, j + seq_len]).type(torch.LongTensor)
             input = {'data': train_data, 'target': train_target}
             input = to_device(input, cfg['device'])
             with torch.no_grad():
@@ -134,33 +141,34 @@ def compress(model, X, Y, num_chunks, vocab_size, seq_len, temp_file_prefix, fin
                 prob = torch.exp(output['pred']).detach().cpu().numpy()
             cumul[:, 1:] = np.cumsum(prob * 10000000 + 1, axis=1)
 
-            # Encode with Arithmetic Encoder
+            # Decode with Arithmetic Encoder
             for i in range(num_chunks):
-                enc[i].write(cumul[i, :], Y[index[i]])
-            index = index + 1
+                series_2d[i, j + seq_len] = dec[i].read(cumul[i, :], vocab_size)
 
             if (j + 1) % 100 == 0:
                 print("Step {}/{} ".format(j + 1, num_iters - seq_len), flush=True)
 
         # close files
         for i in range(num_chunks):
-            enc[i].finish()
-            bitout[i].close()
+            bitin[i].close()
             f[i].close()
 
+        return series_2d.reshape(-1)
+
     else:
-        f = open(temp_file_prefix + '.last', 'wb')
-        bitout = BitOutputStream(f)
-        enc = ArithmeticEncoder(32, bitout)
+        series = np.zeros(len_series, dtype=np.uint8).astype('int')
+        f = open(temp_file_prefix + '.last', 'rb')
+        bitin = BitInputStream(f)
+        dec = ArithmeticDecoder(32, bitin)
         prob = np.ones(vocab_size) / vocab_size
         cumul = np.zeros(vocab_size + 1, dtype=np.uint64)
         cumul[1:] = np.cumsum(prob * 10000000 + 1)
 
-        for j in range(seq_len):
-            enc.write(cumul, X[0, j])
-        for i in (range(len(X))):
-            train_data = torch.from_numpy(X[i:i + 1, :])
-            train_target = torch.from_numpy(Y[i:i + 1]).type(torch.LongTensor)
+        for j in range(min(seq_len, len_series)):
+            series[j] = dec.read(cumul, vocab_size)
+        for i in range(len_series - seq_len):
+            train_data = torch.from_numpy(series[i:i + seq_len].reshape(1, -1))
+            train_target = torch.from_numpy(series[i]).type(torch.LongTensor)
             input = {'data': train_data, 'target': train_target}
             input = to_device(input, cfg['device'])
             with torch.no_grad():
@@ -168,12 +176,10 @@ def compress(model, X, Y, num_chunks, vocab_size, seq_len, temp_file_prefix, fin
                 output = model(**input)
                 prob = torch.exp(output['pred']).detach().cpu().numpy()
             cumul[1:] = np.cumsum(prob * 10000000 + 1)
-            enc.write(cumul, Y[i])
-        enc.finish()
-        bitout.close()
+            series[i + seq_len] = dec.read(cumul, vocab_size)
+        bitin.close()
         f.close()
-
-    return
+        return series
 
 
 if __name__ == "__main__":

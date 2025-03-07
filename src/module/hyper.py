@@ -7,7 +7,7 @@ def process_control():
     cfg['model_name'] = cfg['control']['model_name']
 
     cfg['batch_size'] = 2048
-    cfg['num_chunks'] = 100
+    cfg['num_chunks'] = 512
     cfg['seq_len'] = 64
     cfg['vocab_size'] = 256
     cfg['step_period'] = 1

@@ -65,3 +65,16 @@ def var_int_encode(byte_str_len, f):
             break
         f.write(struct.pack('B', this_byte | 128))
         byte_str_len -= 1
+
+
+def var_int_decode(f):
+    byte_str_len = 0
+    shift = 1
+    while True:
+        this_byte = struct.unpack('B', f.read(1))[0]
+        byte_str_len += (this_byte & 127) * shift
+        if this_byte & 128 == 0:
+                break
+        shift <<= 7
+        byte_str_len += shift
+    return byte_str_len
