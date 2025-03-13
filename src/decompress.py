@@ -11,7 +11,6 @@ import numpy as np
 import shutil
 import json
 
-
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')
 for k in cfg:
@@ -48,7 +47,7 @@ def runExperiment():
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
-    f = open(output_path+'.params','r')
+    f = open(output_path + '.params', 'r')
     params = json.loads(f.read())
     f.close()
 
@@ -59,22 +58,22 @@ def runExperiment():
     vocab_size = 256
 
     # Break into multiple streams
-    f = open(output_path+'.combined','rb')
+    f = open(output_path + '.combined', 'rb')
     for i in range(num_chunks):
-        f_out = open(temp_file_prefix+'.'+str(i),'wb')
+        f_out = open(temp_file_prefix + '.' + str(i), 'wb')
         byte_str_len = var_int_decode(f)
         byte_str = f.read(byte_str_len)
         f_out.write(byte_str)
         f_out.close()
-    f_out = open(temp_file_prefix+'.last','wb')
+    f_out = open(temp_file_prefix + '.last', 'wb')
     byte_str_len = var_int_decode(f)
     byte_str = f.read(byte_str_len)
     f_out.write(byte_str)
     f_out.close()
     f.close()
 
-    series = np.zeros(len_series,dtype=np.uint8)
-    l = int(len(series)/num_chunks)*num_chunks
+    series = np.zeros(len_series, dtype=np.uint8)
+    l = int(len(series) / num_chunks) * num_chunks
 
     model = make_model(cfg['model'])
     result = resume(cfg['checkpoint_path'])

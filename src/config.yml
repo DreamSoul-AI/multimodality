@@ -2,7 +2,7 @@
 # control
 control:
   data_name: DICKENS
-  model_name: bootstrap
+  model_name: trace
 # experiment
 pin_memory: True
 num_workers: 0
@@ -10,5 +10,5 @@ init_seed: 0
 num_experiments: 1
 log_interval: 0.25
 device: cuda
-resume_mode: 1
+resume_mode: 0  # 0 = false
 profile: False

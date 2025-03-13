@@ -194,6 +194,7 @@ def encode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
         train_batch = train_data[ind, :]
         y = train_batch[:, -1]
         train_batch = torch.from_numpy(train_batch).cuda().long()
+        # print("train_batch: ", train_batch.shape)
 
         output = model(train_batch)
         logits = output['pred']
@@ -202,6 +203,7 @@ def encode(temp_dir, compressed_file, model, optimizer, batch_size, vocab_size, 
         optimizer.zero_grad(set_to_none=True)
 
         prob = logits[:, -1, :]
+        # print("prob: ", prob.shape)
         prob = F.softmax(prob, dim=1).detach().cpu().numpy()
         # print("Shape of prob:", prob.shape)
 

@@ -42,6 +42,6 @@ image_directory = r'C:\Users\yuboh\GitHub\data\mnist_test'
 images = load_images_from_directory(image_directory)
 
 # Save the images to a binary file
-output_binary_file = 'input/mnist_test'
+output_binary_file = '../archive/refactored_trace/input/mnist_test'
 save_images_to_binary(images, output_binary_file)
 print(f"Saved {len(images)} images to {output_binary_file}")

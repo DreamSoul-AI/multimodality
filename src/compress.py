@@ -10,7 +10,6 @@ from module import var_int_encode, resume, to_device, process_control, BitOutput
 import numpy as np
 import shutil
 
-
 cudnn.benchmark = True
 parser = argparse.ArgumentParser(description='cfg')
 for k in cfg:

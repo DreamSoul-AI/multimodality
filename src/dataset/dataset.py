@@ -45,7 +45,7 @@ def make_compression_dataset(data_name, output_path, num_chunks, seq_len, verbos
     params['len_series'] = len(series)
     params['num_chunks'] = num_chunks
     params['seq_len'] = seq_len
-    with open(output_path+'.params','w') as f:
+    with open(output_path + '.params', 'w') as f:
         json.dump(params, f, indent=4)
 
     reshaped_series = strided_app(series, seq_len + 1, 1)
@@ -54,7 +54,8 @@ def make_compression_dataset(data_name, output_path, num_chunks, seq_len, verbos
     train_target = reshaped_series[:, -1]
     truncating_len = int(len(series) / num_chunks) * num_chunks
 
-    dataset_ = {'series': series, 'train_data': train_data, 'train_target': train_target, 'length': params['len_series'], 'truncating_len': truncating_len}
+    dataset_ = {'series': series, 'train_data': train_data, 'train_target': train_target,
+                'length': params['len_series'], 'truncating_len': truncating_len}
 
     if verbose:
         print('data ready')

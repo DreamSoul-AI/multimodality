@@ -35,7 +35,7 @@ def recover_images_from_binary(binary_file, output_dir):
             print(f"Saved image_{i}.png")
 
 # Example usage
-binary_file = 'input/mnist_test'  # Path to the binary file
+binary_file = '../archive/refactored_trace/input/mnist_test'  # Path to the binary file
 output_directory = 'recovered_images'  # Directory to save the recovered images
 recover_images_from_binary(binary_file, output_directory)
 print(f"Recovered images saved to {output_directory}")

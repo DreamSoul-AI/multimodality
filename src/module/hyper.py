@@ -1,12 +1,11 @@
 from config import cfg
-# from .stats import make_stats
 
 
 def process_control():
     cfg['data_name'] = cfg['control']['data_name']
     cfg['model_name'] = cfg['control']['model_name']
 
-    cfg['batch_size'] = 2048
+    cfg['batch_size'] = 512
     cfg['num_chunks'] = 512
     cfg['seq_len'] = 64
     cfg['vocab_size'] = 256
@@ -20,17 +19,10 @@ def process_control():
 
     cfg['model'] = {}
     cfg['model']['model_name'] = cfg['model_name']
-    cfg['model']['linear'] = {}
-    cfg['model']['mlp'] = {'hidden_size': 128, 'scale_factor': 2, 'num_layers': 2, 'activation': 'relu'}
-    cfg['model']['cnn'] = {'hidden_size': [64, 128, 256, 512]}
-    cfg['model']['resnet10'] = {'hidden_size': [64, 128, 256, 512]}
-    cfg['model']['resnet18'] = {'hidden_size': [64, 128, 256, 512]}
-    cfg['model']['wresnet28x2'] = {'depth': 28, 'widen_factor': 2, 'drop_rate': 0.0}
-    cfg['model']['wresnet28x8'] = {'depth': 28, 'widen_factor': 8, 'drop_rate': 0.0}
-    cfg['model']['bootstrap'] = {'vocab_size': 256, 'emb_size': 16,
-        'length': 64, 'jump': 16,
-        'hdim1': 128, 'hdim2': 256, 'n_layers': 2,
-        'bidirectional': True}
+    cfg['model']['bootstrap'] = {'vocab_size': 256, 'emb_size': 16, 'length': 64, 'jump': 16, 'hdim1': 128,
+                                 'hdim2': 256, 'n_layers': 2, 'bidirectional': True}
+    cfg['model']['trace'] = {'vocab_size': 256, 'vocab_dim': 64, 'hidden_dim': 256, 'n_layers': 1, 'ffn_dim': 4096,
+                             'n_heads': 1, 'feature_type': 'sqr', 'compute_type': 'iter'}
 
     tag = cfg['tag']
     cfg[tag] = {}

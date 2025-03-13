@@ -5,18 +5,24 @@ import numpy as np
 
 def make_loss(output, input):
     if 'target' in input:
+        # print("output['pred'].shape: ", output['pred'].shape)
+        # print("input['target']: ", input['target'].shape)
         loss = loss_fn(output['pred'], input['target'])
     else:
         return
     return loss
 
 
-def loss_fn(output, target):
-    loss = 1/np.log(2) * F.nll_loss(output, target)
-    return loss
+# def loss_fn(output, target):
+#     loss = 1/np.log(2) * F.nll_loss(output, target)
+#     return loss
 
-def loss_function(pred, target):
-    loss = 1/np.log(2) * F.nll_loss(pred, target)
+
+def loss_fn(output, target, reduction='mean'):
+    if target.dtype == torch.int64:
+        loss = F.cross_entropy(output, target, reduction=reduction)
+    else:
+        loss = kld_loss(output, target, reduction=reduction)
     return loss
 
 def cross_entropy_loss(output, target, reduction='mean'):
