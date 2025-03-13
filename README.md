@@ -1,6 +1,6 @@
 # Multimodality
 
-## [Instructions]
+## Instructions
 
 - Use `image_to_binary.py` or your own scripts to convert your dataset into a single binary file.
 - Create directory `data/YOURDATA/raw` manually, and put your binary file here.
