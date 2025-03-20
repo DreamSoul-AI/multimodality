@@ -6,8 +6,8 @@ from torch.utils.data import Dataset
 from module import check_exists, makedir_exist_ok, save, load, strided_app
 
 
-class DICKENS(Dataset):
-    data_name = 'DICKENS'
+class MNIST(Dataset):
+    data_name = 'MNIST'
 
     def __init__(self, root, batch_size, seq_len, split, process=False, transform=None):
         self.root = os.path.expanduser(root)
@@ -87,3 +87,5 @@ class DICKENS(Dataset):
         #                                                                data_size))
 
         return (train_id, train_data, train_target), (data_size, target_size)
+
+

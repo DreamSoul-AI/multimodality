@@ -8,7 +8,7 @@ from torch.utils.data.dataloader import default_collate
 from module import apply_recursively
 from config import cfg
 import json
-import glob
+from torch.utils.data import ConcatDataset
 
 
 def make_dataset(data_name, batch_size=2048, seq_len=64, transform=True, process=False, verbose=True):
@@ -17,9 +17,16 @@ def make_dataset(data_name, batch_size=2048, seq_len=64, transform=True, process
         print('fetching data {}...'.format(data_name))
     root = os.path.join('data', data_name)
 
-    if data_name in ['DICKENS']:
+    if data_name in ['DICKENS, MNIST']:
         dataset_['train'] = eval('dataset.{}(root=root, batch_size=batch_size, seq_len=seq_len, split="train", '
                                  'process=process)'.format(data_name))
+    elif data_name in ['CONCAT']:
+        mnist_dataset = eval('dataset.MNIST(root=root, batch_size=batch_size, seq_len=seq_len, split="train", '
+                             'process=process)')
+        dickens_dataset = eval('dataset.DICKENS(root=root, batch_size=batch_size, seq_len=seq_len, split="train", '
+                               'process=process)')
+        combined_train = ConcatDataset([mnist_dataset, dickens_dataset])
+        dataset_['train'] = combined_train
     else:
         raise ValueError('Not valid dataset name')
     if verbose:

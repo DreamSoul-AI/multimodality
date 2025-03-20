@@ -3,6 +3,7 @@ import torch
 from collections.abc import Iterable, Mapping
 from itertools import repeat
 import struct
+import numpy as np
 
 
 def filter_args(func, arg_dict):
@@ -78,3 +79,9 @@ def var_int_decode(f):
         shift <<= 7
         byte_str_len += shift
     return byte_str_len
+
+
+def strided_app(a, L, S):  # Window len = L, Stride len = S
+    nrows = ((a.size - L) // S) + 1
+    n = a.strides[0]
+    return np.lib.stride_tricks.as_strided(a, shape=(nrows, L), strides=(S * n, n), writeable=False)
